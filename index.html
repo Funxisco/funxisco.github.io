@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Dia de Saltos</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --cream:#FFF6E8;
+    --coral:#FF8B66;
+    --coral-dark:#E8664A;
+    --gold:#F4C95D;
+    --gold-dark:#C99A2E;
+    --plum:#3A2C46;
+    --teal:#2FA89A;
+    --night:#10123A;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #14162c;
+    font-family: 'Inter', sans-serif;
+    overscroll-behavior: none;
+  }
+
+  #stage {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 380 / 640;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 0;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  @media (min-height: 500px) {
+    #stage { margin-top: max(0px, calc((100vh - 640px) / 2)); border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.45); }
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  .hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 16px 18px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .day-badge {
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    color: var(--cream);
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+
+  .day-number {
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 700;
+    font-size: 34px;
+    color: var(--cream);
+    line-height: 1;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  }
+
+  .best-chip {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--night);
+    background: rgba(255,246,232,0.85);
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+
+  .toast {
+    position: absolute;
+    top: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--night);
+    background: var(--gold);
+    padding: 8px 18px;
+    border-radius: 999px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+    z-index: 6;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 32px;
+    z-index: 10;
+    background: linear-gradient(180deg, rgba(16,18,58,0.55), rgba(16,18,58,0.78));
+    backdrop-filter: blur(2px);
+  }
+
+  .overlay h1 {
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 700;
+    font-size: 46px;
+    color: var(--cream);
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+
+  .overlay .sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: rgba(255,246,232,0.75);
+    margin: 0 0 28px;
+    max-width: 260px;
+    line-height: 1.5;
+  }
+
+  .overlay .result {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 20px;
+    color: var(--cream);
+    margin-bottom: 4px;
+  }
+  .overlay .result-best {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: var(--gold);
+    margin-bottom: 26px;
+    font-weight: 600;
+  }
+
+  .btn {
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 600;
+    font-size: 17px;
+    color: var(--night);
+    background: var(--gold);
+    border: none;
+    padding: 14px 36px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(244,201,93,0.35);
+    transition: transform 0.15s ease;
+  }
+  .btn:active { transform: scale(0.95); }
+
+  .hint {
+    margin-top: 22px;
+    font-size: 12px;
+    color: rgba(255,246,232,0.55);
+    letter-spacing: 0.04em;
+  }
+
+  .badge-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .leap-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    background: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transform: rotate(-6deg);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="game"></canvas>
+
+  <div class="hud">
+    <div>
+      <div class="day-badge">Climbing since Feb 29</div>
+      <div class="day-number" id="dayNumber">Day 1</div>
+    </div>
+    <div class="best-chip" id="bestChip">Best · Day 1</div>
+  </div>
+
+  <div class="toast" id="toast">Dia de Saltos! +50</div>
+
+  <div class="overlay" id="startOverlay">
+    <div class="leap-icon">🐸</div>
+    <h1>Dia de Saltos</h1>
+    <p class="sub">Bounce wall to wall and tap to leap onto the next date tile. Miss one, and the climb ends.</p>
+    <button class="btn" id="startBtn">Start climbing</button>
+    <div class="hint">Tap or press Space to leap</div>
+  </div>
+
+  <div class="overlay" id="overOverlay" style="display:none;">
+    <h1 style="font-size:36px;">Fell through</h1>
+    <div class="result" id="finalDay">Day 1</div>
+    <div class="result-best" id="finalBest">New best!</div>
+    <button class="btn" id="retryBtn">Climb again</button>
+    <div class="hint">Tap or press Space to leap</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const stage = document.getElementById('stage');
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const W = 380, H = 640;
+  canvas.width = W;
+  canvas.height = H;
+
+  const dayNumberEl = document.getElementById('dayNumber');
+  const bestChipEl = document.getElementById('bestChip');
+  const toastEl = document.getElementById('toast');
+  const startOverlay = document.getElementById('startOverlay');
+  const overOverlay = document.getElementById('overOverlay');
+  const finalDayEl = document.getElementById('finalDay');
+  const finalBestEl = document.getElementById('finalBest');
+  const startBtn = document.getElementById('startBtn');
+  const retryBtn = document.getElementById('retryBtn');
+
+  // ---------- constants ----------
+  const GRAVITY = 0.34;
+  const JUMP_VELOCITY = -9.6;
+  const BOUNCY_VELOCITY = -13;
+  const H_SPEED = 2.5;
+  const PLAYER_R = 15;
+  const PLAT_W = 68, PLAT_H = 16;
+  const GAP_MIN = 68, GAP_MAX = 108;
+  const MAX_JUMP_HEIGHT = (JUMP_VELOCITY * JUMP_VELOCITY) / (2 * GRAVITY); // ~135
+  const GROUND_Y = H - 40;
+  const MONSTER_R = 14;
+  const CRUMBLE_LIFE = 26; // frames (60fps units) before a crumble platform breaks
+  const RESPAWN_TIME = 600; // frames (~10s at 60fps) before a broken platform comes back
+  const SPIKE_W = 18, SPIKE_H = 34;
+  const HOLE_DELAY = 300; // frames (~5s at 60fps) standing on a full platform before a hole opens
+  const HOLE_SPEED = 1.1; // px/frame the hole slides side to side once open
+  const BAT_R = 12;
+  const BAT_SPEED = 1.8;
+
+  let best = 1;
+
+  // ---------- mutable game state ----------
+  let player, platforms, monsters, spikes, bats, scrollY, topGenerated, running, day, toastTimer;
+  let lastMilestoneDay, elapsed;
+
+  // climbed = vertical distance climbed from the ground platform (always >= 0)
+  function dayFromClimbed(climbed){
+    return 1 + Math.floor(Math.max(0, climbed) / 42);
+  }
+
+  function spawnSpike(nearY){
+    spikes.push({
+      y: nearY + (Math.random() * 60 - 30),
+      side: Math.random() < 0.5 ? 'left' : 'right',
+      w: SPIKE_W,
+      h: SPIKE_H,
+    });
+  }
+
+  function spawnBat(nearY){
+    bats.push({
+      x: Math.random() * W,
+      baseY: nearY + (Math.random() * 60 - 30),
+      y: 0,
+      vx: Math.random() < 0.5 ? BAT_SPEED : -BAT_SPEED,
+      phase: Math.random() * Math.PI * 2,
+      wing: 0,
+    });
+  }
+
+  function spawnMonster(nearY){
+    monsters.push({
+      x: MONSTER_R + Math.random() * (W - MONSTER_R * 2),
+      y: nearY - 70 - Math.random() * 30,
+      vx: Math.random() < 0.5 ? 1.5 : -1.5,
+      vy: 0,
+      rotation: 0,
+    });
+  }
+
+  function openHoleIn(p){
+    const holeW = 40 + Math.random() * 30;
+    const fromLeft = Math.random() < 0.5;
+    if (fromLeft) {
+      p.holeStart = p.x;
+      p.holeEnd = p.x + holeW;
+      p.holeVx = HOLE_SPEED; // slides right, toward the far border
+    } else {
+      p.holeEnd = p.x + p.w;
+      p.holeStart = p.holeEnd - holeW;
+      p.holeVx = -HOLE_SPEED; // slides left, toward the far border
+    }
+    p.holeCreated = true;
+  }
+
+  function createPlatform(y, forcedX){
+    const climbed = GROUND_Y - y;
+    const dayAt = dayFromClimbed(climbed);
+    const isLeap = dayAt > 1 && dayAt % 29 === 0;
+    const isMilestone = dayAt > 1 && dayAt % 5 === 0 && dayAt !== lastMilestoneDay;
+
+    let x, w = PLAT_W, type = 'normal';
+
+    if (forcedX !== undefined) {
+      x = forcedX;
+    } else if (isMilestone) {
+      lastMilestoneDay = dayAt;
+      x = 4;
+      w = W - 8;
+      type = 'full';
+      spawnMonster(y);
+    } else {
+      x = Math.random() < 0.3
+        ? (Math.random() < 0.5 ? 4 : (W - PLAT_W - 4)) // hug an edge
+        : 18 + Math.random() * (W - 36 - PLAT_W);
+
+      const roll = Math.random();
+      if (roll < 0.16) type = 'moving';
+      else if (roll < 0.30) type = 'crumble';
+      else if (roll < 0.42) type = 'bouncy';
+    }
+
+    return {
+      x, y, w, h: PLAT_H, type, isLeap,
+      baseX: x,
+      phase: Math.random() * Math.PI * 2,
+      crumbleTimer: null,
+      respawnTimer: null,
+      broken: false,
+      claimed: false,
+      standTimer: 0,
+      holeCreated: false,
+      holeStart: null,
+      holeEnd: null,
+      holeVx: 0,
+    };
+  }
+
+  function initGame(){
+    player = {
+      x: W / 2,
+      y: H - 90,
+      vx: H_SPEED,
+      vy: 0,
+      squishY: 1,
+      onPlatform: false,
+      airJumpReady: false,
+      standingPlatform: null,
+    };
+    scrollY = 0;
+    day = 1;
+    running = true;
+    lastMilestoneDay = 0;
+    elapsed = 0;
+
+    platforms = [];
+    monsters = [];
+    spikes = [];
+    bats = [];
+    // ground platform: full width, so the run always starts on solid footing
+    platforms.push({
+      x: 4, y: H - 40, w: W - 8, h: PLAT_H, type: 'full',
+      isLeap: false, baseX: 4, phase: 0, crumbleTimer: null, respawnTimer: null, broken: false, claimed: false,
+      standTimer: 0, holeCreated: false, holeStart: null, holeEnd: null, holeVx: 0,
+    });
+
+    let y = H - 40;
+    topGenerated = y;
+    while (topGenerated > -400) {
+      topGenerated -= GAP_MIN + Math.random() * (GAP_MAX - GAP_MIN);
+      platforms.push(createPlatform(topGenerated));
+      if ((H - 40 - topGenerated) > 150 && Math.random() < 0.22) {
+        spawnSpike(topGenerated);
+      }
+      if ((H - 40 - topGenerated) > 200 && Math.random() < 0.14) {
+        spawnBat(topGenerated);
+      }
+    }
+
+    dayNumberEl.textContent = 'Day 1';
+    bestChipEl.textContent = 'Best · Day ' + best;
+    startOverlay.style.display = 'none';
+    overOverlay.style.display = 'none';
+  }
+
+  function showToast(text){
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1100);
+  }
+
+  function jump(){
+    if (!running) return;
+    if (player.onPlatform) {
+      player.vy = JUMP_VELOCITY;
+      player.onPlatform = false;
+      player.airJumpReady = true; // one extra jump available while airborne
+    } else if (player.airJumpReady) {
+      // clicked again in the middle of the jump: jump again
+      player.vy = JUMP_VELOCITY;
+      player.airJumpReady = false;
+    }
+  }
+
+  function gameOver(){
+    running = false;
+    const finalDay = dayFromClimbed(-scrollY);
+    finalDayEl.textContent = 'Day ' + finalDay;
+    if (finalDay > best) {
+      best = finalDay;
+      finalBestEl.textContent = 'New best!';
+      finalBestEl.style.display = 'block';
+    } else {
+      finalBestEl.textContent = 'Best · Day ' + best;
+      finalBestEl.style.display = 'block';
+    }
+    bestChipEl.textContent = 'Best · Day ' + best;
+    overOverlay.style.display = 'flex';
+  }
+
+  // ---------- update ----------
+  function update(dt){
+    if (!running) return;
+    elapsed += dt;
+
+    // animate platforms: moving ones drift, crumbling ones count down and later respawn
+    for (const p of platforms) {
+      if (p.type === 'moving' && !p.broken) {
+        const amplitude = 42;
+        p.x = Math.max(4, Math.min(W - p.w - 4, p.baseX + Math.sin(elapsed * 0.045 + p.phase) * amplitude));
+      } else if (p.type === 'crumble') {
+        if (p.broken) {
+          if (p.respawnTimer !== null) {
+            p.respawnTimer -= dt;
+            if (p.respawnTimer <= 0) {
+              p.broken = false;
+              p.crumbleTimer = null;
+              p.respawnTimer = null;
+            }
+          }
+        } else if (p.crumbleTimer !== null) {
+          p.crumbleTimer -= dt;
+          if (p.crumbleTimer <= 0) {
+            p.broken = true;
+            p.respawnTimer = RESPAWN_TIME;
+          }
+        }
+      } else if (p.type === 'full' && p.holeCreated) {
+        // hole slides left/right, bouncing off the platform's own borders
+        const holeW = p.holeEnd - p.holeStart;
+        p.holeStart += p.holeVx * dt;
+        p.holeEnd = p.holeStart + holeW;
+        if (p.holeStart <= p.x) {
+          p.holeStart = p.x;
+          p.holeEnd = p.x + holeW;
+          p.holeVx = Math.abs(p.holeVx);
+        } else if (p.holeEnd >= p.x + p.w) {
+          p.holeEnd = p.x + p.w;
+          p.holeStart = p.holeEnd - holeW;
+          p.holeVx = -Math.abs(p.holeVx);
+        }
+      }
+    }
+
+    // advance monsters: same physics as the player - gravity pulls them down,
+    // they bounce off the side walls, and they land on platforms instead of
+    // falling straight through
+    for (const m of monsters) {
+      m.x += m.vx * dt;
+      if (m.x - MONSTER_R < 0) { m.x = MONSTER_R; m.vx = Math.abs(m.vx); }
+      if (m.x + MONSTER_R > W) { m.x = W - MONSTER_R; m.vx = -Math.abs(m.vx); }
+
+      const mPrevBottom = m.y + MONSTER_R;
+      m.vy += GRAVITY * dt;
+      m.y += m.vy * dt;
+      const mNewBottom = m.y + MONSTER_R;
+
+      if (m.vy > 0) {
+        for (const p of platforms) {
+          if (p.broken) continue;
+          const platTop = p.y;
+          if (mPrevBottom <= platTop + 2 && mNewBottom >= platTop &&
+              m.x + MONSTER_R * 0.6 > p.x && m.x - MONSTER_R * 0.6 < p.x + p.w) {
+            m.y = platTop - MONSTER_R;
+            m.vy = 0;
+            break;
+          }
+        }
+      }
+
+      m.rotation += 0.05 * dt * (m.vx > 0 ? 1 : -1);
+    }
+    monsters = monsters.filter(m => m.y - scrollY < H + 300);
+
+    // advance bats: fly side to side, bouncing off the walls, no gravity
+    for (const b of bats) {
+      b.x += b.vx * dt;
+      if (b.x - BAT_R < 0) { b.x = BAT_R; b.vx = Math.abs(b.vx); }
+      if (b.x + BAT_R > W) { b.x = W - BAT_R; b.vx = -Math.abs(b.vx); }
+      b.wing += 0.25 * dt;
+      b.y = b.baseY + Math.sin(elapsed * 0.08 + b.phase) * 8; // gentle flutter
+    }
+    bats = bats.filter(b => b.y - scrollY < H + 300);
+
+    // horizontal bounce
+    player.x += player.vx * dt;
+    if (player.x - PLAYER_R < 0) { player.x = PLAYER_R; player.vx = Math.abs(player.vx); }
+    if (player.x + PLAYER_R > W) { player.x = W - PLAYER_R; player.vx = -Math.abs(player.vx); }
+
+    const prevBottom = player.y + PLAYER_R;
+    player.vy += GRAVITY * dt;
+    player.y += player.vy * dt;
+    const newBottom = player.y + PLAYER_R;
+
+    const wasOnPlatform = player.onPlatform;
+    player.onPlatform = false;
+    let justLanded = false;
+    let landedOn = null;
+    if (player.vy > 0) {
+      for (const p of platforms) {
+        if (p.broken) continue;
+        // a hole has opened in this platform: fall straight through it
+        if (p.holeCreated && player.x > p.holeStart && player.x < p.holeEnd) continue;
+
+        const platTop = p.y;
+        if (prevBottom <= platTop + 2 && newBottom >= platTop &&
+            player.x + PLAYER_R * 0.6 > p.x && player.x - PLAYER_R * 0.6 < p.x + p.w) {
+          player.y = platTop - PLAYER_R;
+          justLanded = true;
+          landedOn = p;
+
+          if (p.isLeap && !p.claimed) {
+            p.claimed = true;
+            showToast('🎉 Dia de Saltos! +1 bonus day');
+          }
+
+          if (p.type === 'crumble') {
+            if (p.crumbleTimer === null) p.crumbleTimer = CRUMBLE_LIFE;
+            player.vy = 0;
+            player.onPlatform = true;
+          } else if (p.type === 'bouncy') {
+            player.vy = BOUNCY_VELOCITY; // auto-launches, no tap needed
+            player.onPlatform = false;
+          } else {
+            player.vy = 0;
+            player.onPlatform = true;
+          }
+          break;
+        }
+      }
+    }
+    // just left a platform (jumped, bounced, or walked off the edge): air jump available again
+    if (wasOnPlatform && !player.onPlatform) {
+      player.airJumpReady = true;
+    }
+
+    // full platforms open a hole after the player has stood on them for 5 seconds
+    if (landedOn && landedOn.type === 'full') {
+      if (player.standingPlatform !== landedOn) {
+        landedOn.standTimer = 0;
+        player.standingPlatform = landedOn;
+      }
+      landedOn.standTimer += dt;
+      if (landedOn.standTimer >= HOLE_DELAY && !landedOn.holeCreated) {
+        openHoleIn(landedOn);
+        showToast('⚠️ The floor is giving way!');
+      }
+    } else if (justLanded) {
+      player.standingPlatform = null;
+    }
+
+    // squash-and-stretch: stretch tall while ascending (jumping), squash flat only on landing impact
+    let targetSquishY = 1;
+    if (player.vy < 0) {
+      targetSquishY = 1 + Math.min(0.4, -player.vy * 0.035);
+    }
+    player.squishY += (targetSquishY - player.squishY) * 0.25 * dt;
+    if (justLanded) player.squishY = 0.68;
+
+    // camera scroll: only moves up, pinning player around 42% of screen
+    const screenY = player.y - scrollY;
+    const pin = H * 0.42;
+    if (screenY < pin) {
+      scrollY -= (pin - screenY);
+    }
+
+    // generate new platforms as camera rises
+    while (topGenerated - scrollY > -300) {
+      topGenerated -= GAP_MIN + Math.random() * (GAP_MAX - GAP_MIN);
+      platforms.push(createPlatform(topGenerated));
+      if (Math.random() < 0.22) spawnSpike(topGenerated);
+      if (Math.random() < 0.14) spawnBat(topGenerated);
+    }
+    // prune far-below platforms
+    if (platforms.length > 40) {
+      platforms = platforms.filter(p => p.y - scrollY < H + 200);
+    }
+    spikes = spikes.filter(s => s.y - scrollY < H + 200);
+
+    // update day counter (only increases)
+    const currentDay = dayFromClimbed(-scrollY);
+    if (currentDay > day) {
+      day = currentDay;
+      dayNumberEl.textContent = 'Day ' + day;
+    }
+
+    // monster collision: landing on top squashes it, touching it any other way is fatal
+    for (const m of monsters) {
+      const dx = player.x - m.x, dy = player.y - m.y;
+      if (Math.sqrt(dx * dx + dy * dy) < PLAYER_R + MONSTER_R - 4) {
+        const monsterTop = m.y - MONSTER_R;
+        const isStomp = player.vy > 0 && prevBottom <= monsterTop + 8;
+        if (isStomp) {
+          m.dead = true;
+          player.vy = JUMP_VELOCITY * 0.65;
+          player.onPlatform = false;
+          player.airJumpReady = true;
+          player.squishY = 0.7;
+          showToast('Squashed! 💥');
+        } else {
+          gameOver();
+          break;
+        }
+      }
+    }
+    monsters = monsters.filter(m => !m.dead);
+
+    // spike collision: touching a wall spike is fatal
+    for (const s of spikes) {
+      const inYRange = player.y + PLAYER_R > s.y && player.y - PLAYER_R < s.y + s.h;
+      if (!inYRange) continue;
+      if (s.side === 'left' && player.x - PLAYER_R < s.w) { gameOver(); break; }
+      if (s.side === 'right' && player.x + PLAYER_R > W - s.w) { gameOver(); break; }
+    }
+
+    // bat collision: always fatal, they can't be stomped like the rolling monster
+    for (const b of bats) {
+      const dx = player.x - b.x, dy = player.y - b.y;
+      if (Math.sqrt(dx * dx + dy * dy) < PLAYER_R + BAT_R - 4) {
+        gameOver();
+        break;
+      }
+    }
+
+    // death check: fell below the visible screen
+    if (player.y - scrollY - PLAYER_R > H + 40) {
+      gameOver();
+    }
+  }
+
+  // ---------- draw ----------
+  function skyColorAt(t){
+    // t: 0 (ground) -> 1 (deep sky), based on day progression
+    const stops = [
+      [0.00, [255, 205, 160]],
+      [0.28, [130, 190, 224]],
+      [0.55, [111, 130, 196]],
+      [0.80, [69, 76, 140]],
+      [1.00, [16, 18, 58]],
+    ];
+    let a = stops[0], b = stops[stops.length - 1];
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (t >= stops[i][0] && t <= stops[i + 1][0]) { a = stops[i]; b = stops[i + 1]; break; }
+    }
+    const span = (b[0] - a[0]) || 1;
+    const f = Math.max(0, Math.min(1, (t - a[0]) / span));
+    const c = [0, 1, 2].map(i => Math.round(a[1][i] + (b[1][i] - a[1][i]) * f));
+    return 'rgb(' + c.join(',') + ')';
+  }
+
+  let stars = Array.from({length: 40}, () => ({
+    x: Math.random() * W, y: Math.random() * -2000, r: Math.random() * 1.6 + 0.4
+  }));
+
+  function draw(){
+    const climbed = Math.max(0, -scrollY);
+    const t = Math.min(1, climbed / 2600);
+
+    // sky gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, skyColorAt(Math.max(0, t - 0.12)));
+    grad.addColorStop(1, skyColorAt(Math.min(1, t + 0.12)));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // stars fade in with altitude
+    if (t > 0.45) {
+      ctx.globalAlpha = Math.min(1, (t - 0.45) / 0.35);
+      ctx.fillStyle = '#FFF6E8';
+      for (const s of stars) {
+        const sy = ((s.y - scrollY * 0.15) % (H + 2000) + (H + 2000)) % (H + 2000) - 1000;
+        ctx.beginPath();
+        ctx.arc(s.x, sy, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // sun/moon
+    const bodyY = 90 - climbed * 0.18;
+    if (bodyY > -60 && bodyY < H + 60) {
+      ctx.beginPath();
+      ctx.fillStyle = t < 0.5 ? 'rgba(255,236,200,0.9)' : 'rgba(230,232,255,0.85)';
+      ctx.arc(W * 0.78, ((bodyY % (H + 400)) + (H + 400)) % (H + 400) - 100, 26, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // platforms
+    for (const p of platforms) {
+      if (p.broken) continue;
+      const py = p.y - scrollY;
+      if (py < -40 || py > H + 40) continue;
+      const dayAt = dayFromClimbed(GROUND_Y - p.y);
+
+      let shakeX = 0;
+      if (p.type === 'crumble' && p.crumbleTimer !== null) {
+        shakeX = Math.sin(elapsed * 1.4) * 2.5 * (1 - p.crumbleTimer / CRUMBLE_LIFE);
+      }
+
+      let fill = '#FFF6E8', edge = '#E8735C', text = '#3A2C46', label = String(dayAt);
+      if (p.isLeap) { fill = '#F4C95D'; edge = '#C99A2E'; text = '#7A5B12'; label = '★ 29'; }
+      else if (p.type === 'full') { fill = '#DCEFE9'; edge = '#2FA89A'; text = '#1F5A52'; label = String(dayAt); }
+      else if (p.type === 'moving') { fill = '#CFE7FF'; edge = '#4E8FCB'; text = '#1F3A56'; }
+      else if (p.type === 'crumble') { fill = '#FFDCC2'; edge = '#D97E4C'; text = '#6B3B1C'; }
+      else if (p.type === 'bouncy') { fill = '#FFD3E6'; edge = '#E15B94'; text = '#6B1E42'; }
+
+      ctx.save();
+      ctx.translate(p.x + p.w / 2 + shakeX, py + p.h / 2);
+
+      ctx.shadowColor = 'rgba(0,0,0,0.25)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 4;
+      ctx.fillStyle = fill;
+      roundRect(ctx, -p.w / 2, -p.h / 2, p.w, p.h, 8);
+      ctx.fill();
+
+      ctx.shadowColor = 'transparent';
+      ctx.fillStyle = edge;
+      roundRect(ctx, -p.w / 2, -p.h / 2, p.w, 4, 8);
+      ctx.fill();
+
+      ctx.fillStyle = text;
+      ctx.font = '600 10px Fredoka, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      if (p.type === 'bouncy') {
+        ctx.fillText('⇈', 0, 3);
+      } else {
+        ctx.fillText(label, 0, 3);
+      }
+      ctx.restore();
+
+      if (p.holeCreated) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(16,18,58,0.88)';
+        roundRect(ctx, p.holeStart, py, p.holeEnd - p.holeStart, p.h, 4);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // spikes (deadly wall hazards)
+    for (const s of spikes) {
+      const sy = s.y - scrollY;
+      if (sy < -60 || sy > H + 60) continue;
+      const teeth = 3;
+      const toothH = s.h / teeth;
+      ctx.save();
+      ctx.fillStyle = '#C23B3B';
+      ctx.strokeStyle = '#7A1F1F';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < teeth; i++) {
+        const top = sy + i * toothH;
+        const bottom = top + toothH;
+        const mid = top + toothH / 2;
+        ctx.beginPath();
+        if (s.side === 'left') {
+          ctx.moveTo(0, top);
+          ctx.lineTo(s.w, mid);
+          ctx.lineTo(0, bottom);
+        } else {
+          ctx.moveTo(W, top);
+          ctx.lineTo(W - s.w, mid);
+          ctx.lineTo(W, bottom);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // monsters (roll left to right)
+    for (const m of monsters) {
+      const my = m.y - scrollY;
+      if (my < -40 || my > H + 40) continue;
+      ctx.save();
+      ctx.translate(m.x, my);
+      ctx.rotate(m.rotation);
+      ctx.fillStyle = '#6B4FA0';
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const rr = i % 2 === 0 ? MONSTER_R : MONSTER_R * 0.7;
+        const px = Math.cos(a) * rr, pyy = Math.sin(a) * rr;
+        if (i === 0) ctx.moveTo(px, pyy); else ctx.lineTo(px, pyy);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#2D2140';
+      ctx.beginPath();
+      ctx.arc(-4, -2, 1.8, 0, Math.PI * 2);
+      ctx.arc(4, -2, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // bats (fly side to side)
+    for (const b of bats) {
+      const by = b.y - scrollY;
+      if (by < -40 || by > H + 40) continue;
+      const flap = Math.sin(b.wing) * 12; // wingtip lift
+      const dir = b.vx > 0 ? 1 : -1;
+
+      ctx.save();
+      ctx.translate(b.x, by);
+      ctx.scale(dir, 1); // face the direction of travel
+
+      // wings
+      ctx.fillStyle = '#3A2E52';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-BAT_R * 1.4, -flap, -BAT_R * 2.2, 2 - flap * 0.4);
+      ctx.quadraticCurveTo(-BAT_R * 1.1, 3, 0, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(BAT_R * 1.4, -flap, BAT_R * 2.2, 2 - flap * 0.4);
+      ctx.quadraticCurveTo(BAT_R * 1.1, 3, 0, 3);
+      ctx.closePath();
+      ctx.fill();
+
+      // body
+      ctx.fillStyle = '#4A3B66';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, BAT_R * 0.6, BAT_R * 0.75, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ears
+      ctx.beginPath();
+      ctx.moveTo(-4, -BAT_R * 0.6);
+      ctx.lineTo(-6, -BAT_R * 1.05);
+      ctx.lineTo(-1, -BAT_R * 0.55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(4, -BAT_R * 0.6);
+      ctx.lineTo(6, -BAT_R * 1.05);
+      ctx.lineTo(1, -BAT_R * 0.55);
+      ctx.closePath();
+      ctx.fill();
+
+      // eyes
+      ctx.fillStyle = '#E8664A';
+      ctx.beginPath();
+      ctx.arc(-3, -1, 1.4, 0, Math.PI * 2);
+      ctx.arc(3, -1, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // player
+    const sx = player.x, sy = player.y - scrollY;
+    const squishY = player.squishY;
+    const squishX = 1 / Math.sqrt(squishY);
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(squishX, squishY);
+
+    ctx.beginPath();
+    ctx.fillStyle = '#E8664A';
+    ctx.ellipse(0, PLAYER_R * 0.15, PLAYER_R, PLAYER_R * 0.95, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.fillStyle = '#FF8B66';
+    ctx.ellipse(0, 0, PLAYER_R, PLAYER_R * 0.95, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // face
+    const dir = player.vx > 0 ? 1 : -1;
+    ctx.fillStyle = '#3A2C46';
+    ctx.beginPath();
+    ctx.arc(dir * 4.5, -2, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(dir * 4.5 + dir * 6, -2, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    // ground shadow if near start
+    ctx.restore && null;
+  }
+
+  function roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // ---------- loop ----------
+  let lastTime = null;
+  function loop(ts){
+    if (lastTime === null) lastTime = ts;
+    const dt = Math.min(2.5, (ts - lastTime) / (1000 / 60));
+    lastTime = ts;
+
+    update(dt);
+    draw();
+
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- input ----------
+  function handleTap(e){
+    if (e.cancelable) e.preventDefault();
+    if (!running) { initGame(); return; }
+    jump();
+  }
+
+  canvas.addEventListener('pointerdown', handleTap);
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (!running) { initGame(); } else { jump(); }
+    }
+  });
+
+  startBtn.addEventListener('click', () => { initGame(); });
+  retryBtn.addEventListener('click', () => { initGame(); });
+
+  // kick off render loop immediately (idle state draws nothing harmful)
+  running = false;
+  lastMilestoneDay = 0;
+  elapsed = 0;
+  player = { x: W/2, y: H-90, vx: H_SPEED, vy: 0, squishY: 1, onPlatform:false, airJumpReady:false, standingPlatform: null };
+  platforms = [{ x: 4, y: H - 40, w: W - 8, h: PLAT_H, type: 'full', isLeap: false, baseX: 4, phase: 0, crumbleTimer: null, respawnTimer: null, broken: false, claimed: false, standTimer: 0, holeCreated: false, holeStart: null, holeEnd: null, holeVx: 0 }];
+  monsters = [];
+  spikes = [];
+  bats = [];
+  scrollY = 0; topGenerated = H - 40; day = 1;
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
