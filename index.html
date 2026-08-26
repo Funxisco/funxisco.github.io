@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Dia de Saltos</title>
+<title>Leap Day</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
 
@@ -27,23 +27,24 @@
     background: #14162c;
     font-family: 'Inter', sans-serif;
     overscroll-behavior: none;
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100dvh;
   }
 
   #stage {
     position: relative;
-    width: 100%;
-    max-width: 400px;
-    aspect-ratio: 380 / 640;
-    margin: 0 auto;
     overflow: hidden;
-    border-radius: 0;
-    touch-action: manipulation;
+    border-radius: 16px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+    touch-action: none;
     user-select: none;
     -webkit-user-select: none;
-  }
-
-  @media (min-height: 500px) {
-    #stage { margin-top: max(0px, calc((100vh - 640px) / 2)); border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.45); }
   }
 
   canvas {
@@ -219,11 +220,11 @@
     <div class="best-chip" id="bestChip">Best · Day 1</div>
   </div>
 
-  <div class="toast" id="toast">Dia de Saltos! +50</div>
+  <div class="toast" id="toast">Leap Day! +50</div>
 
   <div class="overlay" id="startOverlay">
     <div class="leap-icon">🐸</div>
-    <h1>Dia de Saltos</h1>
+    <h1>Leap Day</h1>
     <p class="sub">Bounce wall to wall and tap to leap onto the next date tile. Miss one, and the climb ends.</p>
     <button class="btn" id="startBtn">Start climbing</button>
     <div class="hint">Tap or press Space to leap</div>
@@ -244,9 +245,31 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
 
+  // W/H are the game's fixed logical resolution (physics & layout are tuned to this).
+  // The stage element and canvas backing resolution are resized to fit the actual
+  // page/viewport, scaling that logical resolution up or down as needed.
   const W = 380, H = 640;
-  canvas.width = W;
-  canvas.height = H;
+
+  function fitToPage(){
+    const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+    const cssW = Math.max(1, Math.round(W * scale));
+    const cssH = Math.max(1, Math.round(H * scale));
+    stage.style.width = cssW + 'px';
+    stage.style.height = cssH + 'px';
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    // draw calls still use the logical 0..W / 0..H coordinate space
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  }
+
+  fitToPage();
+  window.addEventListener('resize', fitToPage);
+  window.addEventListener('orientationchange', fitToPage);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', fitToPage);
+  }
 
   const dayNumberEl = document.getElementById('dayNumber');
   const bestChipEl = document.getElementById('bestChip');
@@ -572,7 +595,7 @@
 
           if (p.isLeap && !p.claimed) {
             p.claimed = true;
-            showToast('🎉 Dia de Saltos! +1 bonus day');
+            showToast('🎉 Leap Day! +1 bonus day');
           }
 
           if (p.type === 'crumble') {
