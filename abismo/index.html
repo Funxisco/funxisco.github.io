@@ -20,7 +20,7 @@
     -webkit-user-select:none; user-select:none; touch-action:none;
   }
   canvas{display:block; position:fixed; top:0; left:0;}
- 
+
   #hud{
     position:fixed; top:0; left:0; width:100%; height:100%;
     pointer-events:none; color:var(--text); z-index:10;
@@ -41,7 +41,7 @@
   .oxy-fill{background: linear-gradient(90deg,#5fc9ff,#5fe0c7);}
   #coinCount, #depthCount{font-weight:600; color:var(--accent-warm); min-width:52px; text-align:right;}
   #depthCount{color:var(--accent);}
- 
+
   .hud-hint{
     position:absolute; left:50%; transform:translateX(-50%);
     bottom:26px; background:var(--panel-bg); border:1px solid var(--panel-border);
@@ -49,7 +49,7 @@
     opacity:0; transition:opacity .25s ease; max-width:90vw;
   }
   .hud-hint.show{opacity:1;}
- 
+
   #shopBtn{
     position:absolute; left:50%; transform:translateX(-50%);
     bottom:26px; padding:12px 26px; border-radius:26px; border:none;
@@ -58,7 +58,7 @@
     box-shadow:0 6px 18px rgba(255,140,60,0.45);
   }
   #shopBtn.show{display:block;}
- 
+
   #startScreen{
     position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center;
     background: radial-gradient(ellipse at 50% 30%, #12495a 0%, #062430 55%, #01080c 100%);
@@ -85,7 +85,7 @@
     box-shadow:0 6px 22px rgba(95,224,199,0.4);
   }
   #startBtn:active{transform:scale(0.97);}
- 
+
   #shopModal{
     position:fixed; inset:0; z-index:25; display:none; align-items:center; justify-content:center;
     background:rgba(0,10,14,0.55); backdrop-filter: blur(2px);
@@ -116,14 +116,14 @@
     margin-top:6px; width:100%; padding:10px; border-radius:12px; border:1px solid var(--panel-border);
     background:transparent; color:var(--text); cursor:pointer; font-size:14px;
   }
- 
+
   #dmgFlash{
     position:fixed; inset:0; pointer-events:none; z-index:15;
     background:radial-gradient(ellipse at center, rgba(255,0,0,0) 40%, rgba(255,0,0,0.35) 100%);
     opacity:0; transition:opacity .12s ease;
   }
   #dmgFlash.show{opacity:1;}
- 
+
   #popupLayer{position:fixed; inset:0; pointer-events:none; z-index:12;}
   .popup{
     position:absolute; font-weight:700; font-size:15px; color:var(--accent-warm);
@@ -134,15 +134,22 @@
     0%{opacity:1; transform:translateY(0);}
     100%{opacity:0; transform:translateY(-40px);}
   }
- 
+
   #mobileControls{
     position:fixed; bottom:0; left:0; width:100%; z-index:20; display:none;
-    justify-content:space-between; padding:18px; pointer-events:none;
+    justify-content:space-between; align-items:flex-end; padding:26px; pointer-events:none;
   }
-  .dpad{display:grid; grid-template-columns:56px 56px 56px; grid-template-rows:56px 56px 56px; gap:4px; pointer-events:auto;}
-  .dpad button{
-    border-radius:12px; border:1px solid var(--panel-border); background:var(--panel-bg); color:var(--text);
-    font-size:20px; touch-action:none;
+  #joystick{
+    position:relative; width:130px; height:130px; border-radius:50%;
+    background:rgba(255,255,255,0.07); border:1px solid var(--panel-border);
+    pointer-events:auto; touch-action:none; backdrop-filter: blur(2px);
+  }
+  #joystickKnob{
+    position:absolute; left:50%; top:50%; width:58px; height:58px;
+    margin:-29px 0 0 -29px; border-radius:50%;
+    background:rgba(95,224,199,0.28); border:1.5px solid var(--accent);
+    box-shadow:0 2px 10px rgba(0,0,0,0.35);
+    transform:translate(0px,0px);
   }
   #atkBtn{
     align-self:flex-end; width:74px; height:74px; border-radius:50%; pointer-events:auto;
@@ -153,12 +160,13 @@
   }
 </style>
 </head>
+
 <body>
- 
+
 <canvas id="game"></canvas>
 <div id="dmgFlash"></div>
 <div id="popupLayer"></div>
- 
+
 <div id="hud">
   <div class="hud-topleft">
     <div class="hud-row"><span class="icon">❤️</span><div class="bar-track"><div id="healthFill" class="bar-fill health-fill" style="width:100%"></div></div></div>
@@ -168,7 +176,7 @@
   <div id="hint" class="hud-hint"></div>
   <button id="shopBtn">🏠 Entrar na loja</button>
 </div>
- 
+
 <div id="shopModal">
   <div class="shop-panel">
     <h2>🏠 Loja do Mergulhador</h2>
@@ -177,7 +185,7 @@
     <button id="closeShop">Fechar (E)</button>
   </div>
 </div>
- 
+
 <div id="startScreen">
   <h1>🌊 ABISMO</h1>
   <p>És um mergulhador. Explora um oceano infinito, apanha peixinhos coloridos para ganhar moedas e cuidado com os monstros que vivem nas profundezas escuras. Volta à superfície e visita a casa para comprar lanterna, armadura e arma.</p>
@@ -188,20 +196,18 @@
   </div>
   <button id="startBtn">Mergulhar</button>
 </div>
- 
+
 <div id="mobileControls">
-  <div class="dpad">
-    <div></div><button id="mUp">▲</button><div></div>
-    <button id="mLeft">◀</button><div></div><button id="mRight">▶</button>
-    <div></div><button id="mDown">▼</button><div></div>
+  <div id="joystick">
+    <div id="joystickKnob"></div>
   </div>
   <button id="atkBtn">🔱</button>
 </div>
- 
+
 <script>
 (function(){
 "use strict";
- 
+
 // ---------- Canvas setup ----------
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -214,7 +220,7 @@ function resize(){
 }
 window.addEventListener('resize', resize);
 resize();
- 
+
 // ---------- Utility ----------
 function rand(a,b){ return a + Math.random()*(b-a); }
 function randi(a,b){ return Math.floor(rand(a,b+1)); }
@@ -229,7 +235,7 @@ function lerpAngle(a,b,t){
   let diff = ((b-a+Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
   return a + diff*t;
 }
- 
+
 // ---------- World constants ----------
 const WATER_LEVEL = 0;          // world y of the water surface
 const SKY_MIN = -420;           // how high the diver can go
@@ -238,9 +244,9 @@ const DARK_START = 650;         // depth where it starts getting seriously dark
 const DARK_FULL = 1900;         // depth of near-total darkness
 const MONSTER_MIN_DEPTH = 700;  // monsters only in the dark zone
 const HOUSE_X = 0;              // house world x
- 
+
 const FISH_COLORS = ['#ff6b6b','#ffd93d','#6bcBef','#ff9f43','#a78bfa','#4ade80','#f472b6','#38bdf8','#fbbf24'];
- 
+
 // ---------- Game state ----------
 const player = {
   x: HOUSE_X + 60, y: -30,
@@ -258,20 +264,21 @@ const player = {
   attackCooldown:0,
   swimPhase:0,
 };
- 
+
 const camera = {x:0, y:0};
 const keys = {};
 let gameStarted = false;
 let shopOpen = false;
 let lastTime = 0;
- 
+let cloudDrift = 0; // clouds always drift the same direction, independent of the player
+
 const fishPool = [];
 const monsterPool = [];
 const bubbleParticles = [];
- 
+
 const FISH_COUNT = 46;
 const MONSTER_COUNT = 12;
- 
+
 // ---------- Entity factories ----------
 function spawnFishAt(f, nearPlayer){
   const ring = nearPlayer ? rand(W*0.6, W*1.1) : rand(200, W);
@@ -312,7 +319,7 @@ function makeMonster(){
 }
 for(let i=0;i<FISH_COUNT;i++) fishPool.push(makeFish());
 for(let i=0;i<MONSTER_COUNT;i++) monsterPool.push(makeMonster());
- 
+
 // ---------- Input ----------
 window.addEventListener('keydown', e=>{
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
@@ -321,22 +328,70 @@ window.addEventListener('keydown', e=>{
   if(e.key === ' ') doAttack();
 });
 window.addEventListener('keyup', e=>{ keys[e.key] = false; });
- 
-function bindHold(id, key){
-  const el = document.getElementById(id);
-  const on = (ev)=>{ ev.preventDefault(); keys[key]=true; };
-  const off = (ev)=>{ ev.preventDefault(); keys[key]=false; };
-  el.addEventListener('touchstart', on, {passive:false});
-  el.addEventListener('touchend', off, {passive:false});
-  el.addEventListener('mousedown', on);
-  el.addEventListener('mouseup', off);
-  el.addEventListener('mouseleave', off);
+
+// Virtual analog joystick for touch movement
+const joystick = { active:false, x:0, y:0, touchId:null };
+const joyBase = document.getElementById('joystick');
+const joyKnob = document.getElementById('joystickKnob');
+const JOY_RADIUS = 46;
+
+function setKnobPos(dx,dy){
+  joyKnob.style.transition = 'none';
+  joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
 }
-bindHold('mUp','ArrowUp'); bindHold('mDown','ArrowDown');
-bindHold('mLeft','ArrowLeft'); bindHold('mRight','ArrowRight');
+function resetKnob(){
+  joyKnob.style.transition = 'transform 0.15s ease';
+  joyKnob.style.transform = 'translate(0px, 0px)';
+}
+function updateJoystickFromPoint(clientX, clientY){
+  const rect = joyBase.getBoundingClientRect();
+  const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+  let dx = clientX - cx, dy = clientY - cy;
+  const d = Math.hypot(dx,dy);
+  if(d > JOY_RADIUS){ dx = dx/d*JOY_RADIUS; dy = dy/d*JOY_RADIUS; }
+  setKnobPos(dx,dy);
+  joystick.x = dx/JOY_RADIUS;
+  joystick.y = dy/JOY_RADIUS;
+}
+function endJoystick(){
+  joystick.active = false; joystick.x = 0; joystick.y = 0; joystick.touchId = null;
+  resetKnob();
+}
+joyBase.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  joystick.active = true; joystick.touchId = t.identifier;
+  updateJoystickFromPoint(t.clientX, t.clientY);
+}, {passive:false});
+joyBase.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier === joystick.touchId) updateJoystickFromPoint(t.clientX, t.clientY);
+  }
+}, {passive:false});
+joyBase.addEventListener('touchend', e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier === joystick.touchId) endJoystick();
+  }
+}, {passive:false});
+joyBase.addEventListener('touchcancel', endJoystick);
+// mouse support too, so the joystick also works with a mouse for quick testing
+let joyMouseDown = false;
+joyBase.addEventListener('mousedown', e=>{
+  joyMouseDown = true; joystick.active = true;
+  updateJoystickFromPoint(e.clientX, e.clientY);
+});
+window.addEventListener('mousemove', e=>{
+  if(joyMouseDown) updateJoystickFromPoint(e.clientX, e.clientY);
+});
+window.addEventListener('mouseup', ()=>{
+  if(joyMouseDown){ joyMouseDown = false; endJoystick(); }
+});
+
 document.getElementById('atkBtn').addEventListener('touchstart', e=>{e.preventDefault(); doAttack();}, {passive:false});
 document.getElementById('atkBtn').addEventListener('click', doAttack);
- 
+
 // ---------- Start screen ----------
 document.getElementById('startBtn').addEventListener('click', ()=>{
   document.getElementById('startScreen').style.display='none';
@@ -344,7 +399,7 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
   lastTime = performance.now();
   requestAnimationFrame(loop);
 });
- 
+
 // ---------- Hint ----------
 let hintTimer = 0;
 function showHint(text, dur){
@@ -353,7 +408,7 @@ function showHint(text, dur){
   el.classList.add('show');
   hintTimer = dur || 2.2;
 }
- 
+
 // ---------- Popups ----------
 function spawnPopup(worldX, worldY, text, color){
   const el = document.createElement('div');
@@ -365,7 +420,7 @@ function spawnPopup(worldX, worldY, text, color){
   document.getElementById('popupLayer').appendChild(el);
   setTimeout(()=> el.remove(), 950);
 }
- 
+
 // ---------- Shop ----------
 const SHOP_RADIUS = 130;
 const ITEMS = [
@@ -435,7 +490,7 @@ function renderShop(){
     wrap.appendChild(div);
   });
 }
- 
+
 // ---------- Attack ----------
 function doAttack(){
   if(!gameStarted || shopOpen) return;
@@ -462,39 +517,52 @@ function doAttack(){
     }
   }
 }
- 
+
 // ---------- Update ----------
 const ACCEL = 620, MAXSPEED = 210, DRAG = 4.2;
-const BUOY_ACCEL = 34; // slow automatic rise toward the surface when idle
- 
+const BUOY_ACCEL = 95; // rise briskly toward the surface when idle
+const CLOUD_WIND_SPEED = 9; // px/sec, clouds always drift this direction
+
 function update(dt){
   if(shopOpen) return;
- 
+
+  cloudDrift += CLOUD_WIND_SPEED*dt;
+
   // input -> acceleration
   let ax=0, ay=0, inputActive=false;
   if(keys['ArrowLeft']){ ax -= ACCEL; inputActive=true; }
   if(keys['ArrowRight']){ ax += ACCEL; inputActive=true; }
   if(keys['ArrowUp']){ ay -= ACCEL; inputActive=true; }
   if(keys['ArrowDown']){ ay += ACCEL; inputActive=true; }
- 
+
+  // analog touch joystick, added on top of keyboard input
+  if(joystick.active){
+    const mag = Math.hypot(joystick.x, joystick.y);
+    if(mag > 0.12){
+      ax += joystick.x*ACCEL;
+      ay += joystick.y*ACCEL;
+      inputActive = true;
+    }
+  }
+
   // idle buoyancy: gently float back up to the surface if the player does nothing
   if(!inputActive && player.y > 4){
     ay -= BUOY_ACCEL;
   }
- 
+
   player.vx += ax*dt; player.vy += ay*dt;
   player.vx -= player.vx*Math.min(1,DRAG*dt);
   player.vy -= player.vy*Math.min(1,DRAG*dt);
   player.vx = clamp(player.vx,-MAXSPEED,MAXSPEED);
   player.vy = clamp(player.vy,-MAXSPEED,MAXSPEED);
- 
+
   player.x += player.vx*dt;
   player.y += player.vy*dt;
   player.y = clamp(player.y, SKY_MIN, MAX_DEPTH-20);
   if(!inputActive && player.y <= 4 && player.y > SKY_MIN+10){
     player.vy *= 0.9; // settle gently at the surface instead of drifting into the sky
   }
- 
+
   // smoothly rotate the diver to face the direction he's actually swimming in
   const speed = Math.hypot(player.vx, player.vy);
   if(speed > 6){
@@ -502,16 +570,16 @@ function update(dt){
     player.angle = lerpAngle(player.angle, target, Math.min(1, dt*9));
     player.facing = Math.cos(player.angle) < 0 ? -1 : 1;
   }
- 
+
   player.swimPhase += dt*(2.2 + Math.hypot(player.vx,player.vy)/80);
   if(player.invuln>0) player.invuln -= dt;
   if(player.attackCooldown>0) player.attackCooldown -= dt;
   if(player.attackTimer>0) player.attackTimer -= dt;
- 
+
   // camera follows, clamp vertical so we don't show too far into blank sky
   camera.x = player.x - W/2;
   camera.y = clamp(player.y - H/2, SKY_MIN-140, MAX_DEPTH-H+80);
- 
+
   // fish behaviour
   for(const f of fishPool){
     const d = dist(f.x,f.y,player.x,player.y);
@@ -528,7 +596,7 @@ function update(dt){
       updateHUD();
     }
   }
- 
+
   // monster behaviour
   for(const m of monsterPool){
     const d = dist(m.x,m.y,player.x,player.y);
@@ -558,7 +626,7 @@ function update(dt){
       updateHUD();
     }
   }
- 
+
   // bubbles ambient
   if(Math.random()<0.5){
     bubbleParticles.push({
@@ -571,7 +639,7 @@ function update(dt){
     b.age += dt; b.y += b.vy*dt; b.x += Math.sin(b.age*4)*6*dt;
     if(b.age>b.life) bubbleParticles.splice(i,1);
   }
- 
+
   // hint near house
   if(nearHouse() && !shopOpen){
     showHint('Pressiona E para abrir a loja', 0.3);
@@ -583,10 +651,10 @@ function update(dt){
     hintTimer -= dt;
     if(hintTimer<=0) document.getElementById('hint').classList.remove('show');
   }
- 
+
   updateHUD();
 }
- 
+
 function respawnPlayer(){
   player.health = player.maxHealth;
   player.x = HOUSE_X + 60; player.y = -30;
@@ -594,20 +662,20 @@ function respawnPlayer(){
   player.coins = 0;
   showHint('Foste apanhado! Perdeste todas as moedas...', 2.8);
 }
- 
+
 function flashDamage(){
   const el = document.getElementById('dmgFlash');
   el.classList.add('show');
   setTimeout(()=> el.classList.remove('show'), 140);
 }
- 
+
 function updateHUD(){
   document.getElementById('healthFill').style.width = clamp(player.health/player.maxHealth*100,0,100)+'%';
   document.getElementById('coinCount').textContent = player.coins;
   const depthM = Math.max(0, Math.round(player.y/8));
   document.getElementById('depthCount').textContent = depthM+'m';
 }
- 
+
 // ---------- Depth color ----------
 const SKY_TOP = [125,196,235];
 const SKY_BOTTOM = [186,225,240];
@@ -615,7 +683,7 @@ const WATER_SURFACE = [46,150,180];
 const WATER_MID = [10,60,95];
 const WATER_DEEP = [3,10,20];
 const WATER_ABYSS = [0,0,2];
- 
+
 function waterColorAt(depth){
   if(depth <= 0) return WATER_SURFACE;
   if(depth < DARK_START) return lerpColor(WATER_SURFACE, WATER_MID, depth/DARK_START);
@@ -623,7 +691,7 @@ function waterColorAt(depth){
   const t = clamp((depth-DARK_FULL)/1400,0,1);
   return lerpColor(WATER_DEEP, WATER_ABYSS, t);
 }
- 
+
 // ---------- Rendering ----------
 function drawBackground(){
   // Sky (above water)
@@ -632,7 +700,7 @@ function drawBackground(){
   skyGrad.addColorStop(1, rgb(SKY_BOTTOM));
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, SKY_MIN-camera.y, W, (WATER_LEVEL-SKY_MIN));
- 
+
   // sun
   ctx.save();
   ctx.globalAlpha = 0.9;
@@ -642,11 +710,11 @@ function drawBackground(){
   ctx.arc(sunX + W*1.4, 90 - camera.y*0.05, 46, 0, Math.PI*2);
   ctx.fill();
   ctx.restore();
- 
+
   // clouds and birds (parallax)
   drawClouds();
   drawBirds();
- 
+
   // water column, banded by depth for smooth vertical gradient in visible range
   const topDepth = Math.max(0, camera.y);
   const bottomDepth = Math.min(MAX_DEPTH, camera.y+H);
@@ -661,7 +729,7 @@ function drawBackground(){
       ctx.fillRect(0, sy-1, W, bandH+2);
     }
   }
- 
+
   // caustics / light shafts near surface
   if(topDepth < 900){
     ctx.save();
@@ -678,16 +746,17 @@ function drawBackground(){
     ctx.restore();
   }
 }
- 
+
 function drawClouds(){
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
   const parallax = 0.25;
   const spacing = 420;
   const skyBottom = WATER_LEVEL - camera.y;
-  const startIdx = Math.floor((camera.x*parallax - W)/spacing)-1;
+  const scrollX = camera.x*parallax + cloudDrift;
+  const startIdx = Math.floor((scrollX - W)/spacing)-1;
   for(let i=startIdx;i<startIdx+8;i++){
-    const cx = i*spacing - camera.x*parallax + W/2;
+    const cx = i*spacing - scrollX + W/2;
     const cy = 70 + (i%3)*26 - camera.y*0.08;
     if(cy > skyBottom) continue;
     drawCloud(cx, cy, 46);
@@ -701,7 +770,7 @@ function drawCloud(x,y,s){
   ctx.ellipse(x-s*0.7,y+s*0.15,s*0.6,s*0.4,0,0,Math.PI*2);
   ctx.fill();
 }
- 
+
 function drawBirds(){
   ctx.save();
   ctx.strokeStyle = 'rgba(50,45,40,0.75)';
@@ -727,7 +796,7 @@ function drawBirds(){
   }
   ctx.restore();
 }
- 
+
 function drawHouse(){
   const sx = HOUSE_X - camera.x;
   const baseY = -60 - camera.y;
@@ -763,7 +832,7 @@ function drawHouse(){
   ctx.font = 'bold 13px sans-serif';
   ctx.textAlign='center';
   ctx.fillText('LOJA', sx, baseY-52);
- 
+
   if(nearHouse()){
     ctx.save();
     ctx.strokeStyle = 'rgba(95,224,199,0.6)';
@@ -775,7 +844,7 @@ function drawHouse(){
     ctx.restore();
   }
 }
- 
+
 function drawWaterSurfaceLine(){
   const sy = WATER_LEVEL - camera.y;
   if(sy < -20 || sy > H+20) return;
@@ -791,7 +860,7 @@ function drawWaterSurfaceLine(){
   ctx.stroke();
   ctx.restore();
 }
- 
+
 function drawFish(f){
   const sx = f.x - camera.x, sy = f.y - camera.y;
   if(sx<-40||sx>W+40||sy<-40||sy>H+40) return;
@@ -816,7 +885,7 @@ function drawFish(f){
   ctx.beginPath(); ctx.arc(f.size*0.48,-f.size*0.1,f.size*0.08,0,Math.PI*2); ctx.fill();
   ctx.restore();
 }
- 
+
 function drawMonster(m){
   const sx = m.x - camera.x, sy = m.y - camera.y;
   if(sx<-80||sx>W+80||sy<-80||sy>H+80) return;
@@ -850,7 +919,7 @@ function drawMonster(m){
   ctx.fillStyle='#ff3b3b';
   ctx.beginPath(); ctx.arc(m.size*0.3,-m.size*0.05,4,0,Math.PI*2); ctx.fill();
   ctx.restore();
- 
+
   // hp bar if damaged
   if(m.hp < m.maxHp){
     ctx.save();
@@ -862,21 +931,21 @@ function drawMonster(m){
     ctx.restore();
   }
 }
- 
+
 function drawPlayer(){
   const sx = W/2, sy = player.y - camera.y;
   const bob = Math.sin(player.swimPhase)*3;
- 
+
   ctx.save();
   ctx.translate(sx, sy+bob);   // vertical bob stays upright regardless of rotation
   ctx.rotate(player.angle);    // nose points in the actual swimming direction
- 
+
   if(player.invuln>0 && Math.floor(player.invuln*14)%2===0){
     ctx.globalAlpha = 0.4;
   }
- 
+
   const finFlap = Math.sin(player.swimPhase*2)*4;
- 
+
   // fins (trail behind, along -x)
   ctx.fillStyle = '#0ea5a0';
   ctx.beginPath();
@@ -885,13 +954,13 @@ function drawPlayer(){
   ctx.beginPath();
   ctx.ellipse(-19, 5-finFlap*0.3, 11, 5, 0.35, 0, Math.PI*2);
   ctx.fill();
- 
+
   // wetsuit body (oriented along direction of travel)
   ctx.fillStyle = '#0f766e';
   ctx.beginPath();
   ctx.ellipse(-4, 0, 20, 14, 0, 0, Math.PI*2);
   ctx.fill();
- 
+
   // armor overlay
   if(player.armorLevel>0){
     ctx.fillStyle = `rgba(180,190,200,${0.35+player.armorLevel*0.2})`;
@@ -901,7 +970,7 @@ function drawPlayer(){
     ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth=1.5;
     ctx.stroke();
   }
- 
+
   // helmet/head (leads the way, toward +x)
   ctx.fillStyle = '#e5e7eb';
   ctx.beginPath();
@@ -911,7 +980,7 @@ function drawPlayer(){
   ctx.beginPath();
   ctx.ellipse(16, 0, 6, 6, 0, 0, Math.PI*2);
   ctx.fill();
- 
+
   // flashlight helmet lamp
   if(player.hasFlashlight){
     ctx.fillStyle = '#fde68a';
@@ -922,7 +991,7 @@ function drawPlayer(){
     ctx.beginPath(); ctx.arc(20, -8, 6, 0, Math.PI*2); ctx.fill();
     ctx.restore();
   }
- 
+
   // weapon (spear), points forward with a quick forward jab when attacking
   if(player.weaponLevel>0){
     ctx.save();
@@ -936,10 +1005,10 @@ function drawPlayer(){
     ctx.moveTo(tipX,-6); ctx.lineTo(tipX+14,-1); ctx.lineTo(tipX,4); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
- 
+
   ctx.restore();
 }
- 
+
 function drawBubbles(){
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
@@ -950,7 +1019,7 @@ function drawBubbles(){
   }
   ctx.restore();
 }
- 
+
 function drawDarknessOverlay(){
   const depth = player.y;
   if(depth < DARK_START*0.5) return;
@@ -958,11 +1027,11 @@ function drawDarknessOverlay(){
   const maxAlpha = 0.93;
   const alpha = t*maxAlpha;
   if(alpha<=0.01) return;
- 
+
   ctx.save();
   ctx.fillStyle = `rgba(0,0,4,${alpha})`;
   ctx.fillRect(0,0,W,H);
- 
+
   if(player.hasFlashlight){
     const radius = 240;
     // 1) punch a clear hole in the darkness so the backdrop underneath shows through
@@ -973,7 +1042,7 @@ function drawDarknessOverlay(){
     ctx.globalCompositeOperation = 'destination-out';
     ctx.fillStyle = holeGrad;
     ctx.beginPath(); ctx.arc(W/2,H/2,radius,0,Math.PI*2); ctx.fill();
- 
+
     // 2) lay a soft, transparent warm-yellow beam on top, additively
     ctx.globalCompositeOperation = 'lighter';
     const glowGrad = ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,radius);
@@ -994,7 +1063,7 @@ function drawDarknessOverlay(){
   }
   ctx.restore();
 }
- 
+
 // Parallax seaweed foreground layers
 const weedLayers = [
   {factor:0.55, color:'rgba(10,50,35,0.55)', h:120, seed:11},
@@ -1024,20 +1093,20 @@ function drawWeedLayer(layer){
 function drawWeedForeground(){
   for(const l of weedLayers) drawWeedLayer(l);
 }
- 
+
 function drawCompass(){
   const cx = W-64, cy = 64, r = 30;
   const dx = HOUSE_X - player.x, dy = -60 - player.y;
   const d = Math.hypot(dx,dy);
   const angle = Math.atan2(dy,dx);
- 
+
   ctx.save();
   // badge
   ctx.fillStyle = 'rgba(6,20,28,0.72)';
   ctx.strokeStyle = 'rgba(120,220,220,0.4)';
   ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
- 
+
   // arrow pointing toward the house
   ctx.translate(cx,cy);
   ctx.rotate(angle);
@@ -1050,7 +1119,7 @@ function drawCompass(){
   ctx.closePath();
   ctx.fill();
   ctx.restore();
- 
+
   // little house icon at center + distance label
   ctx.save();
   ctx.font = '14px sans-serif';
@@ -1061,24 +1130,24 @@ function drawCompass(){
   ctx.fillText(Math.round(Math.max(0,d)/8)+'m', cx, cy+r+16);
   ctx.restore();
 }
- 
+
 function render(){
   ctx.clearRect(0,0,W,H);
   drawBackground();
   drawHouse();
   drawWaterSurfaceLine();
- 
+
   drawDarknessOverlay(); // lights/dims the backdrop only — entities render fresh on top
- 
+
   for(const f of fishPool) drawFish(f);
   for(const m of monsterPool) drawMonster(m);
   drawBubbles();
   drawPlayer();
- 
+
   drawWeedForeground();
   drawCompass();
 }
- 
+
 // ---------- Loop ----------
 function loop(now){
   const dt = Math.min(0.05, (now-lastTime)/1000);
@@ -1087,10 +1156,9 @@ function loop(now){
   render();
   if(gameStarted) requestAnimationFrame(loop);
 }
- 
+
 updateHUD();
 })();
 </script>
 </body>
 </html>
- 
