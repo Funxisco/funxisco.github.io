@@ -1,14 +1,373 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="pt">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Jogos feitos pelo Francisco</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Jogos do Funxisco</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Quicksand:wght@500;600;700&display=swap');
+
+  :root{
+    --canopy:#1B4332;
+    --canopy-dark:#0F2E1D;
+    --leaf:#52B788;
+    --leaf-light:#B7E4C7;
+    --sun:#FFC93C;
+    --toucan:#FF6B35;
+    --night:#2B2A4C;
+    --night-light:#4A4770;
+    --paper:#F2F7ED;
+    --paper-card:#FDFBF3;
+    --ink:#1B2E1F;
+    --ink-soft:#3E5145;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Quicksand',sans-serif;
+    overflow-x:hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+
+  /* ---------- Foliage border pattern ---------- */
+  .vine-strip{
+    height:22px;
+    width:100%;
+    background:
+      radial-gradient(circle at 10px 6px, var(--leaf) 6px, transparent 7px),
+      radial-gradient(circle at 30px 16px, var(--leaf) 6px, transparent 7px),
+      radial-gradient(circle at 50px 6px, var(--leaf) 6px, transparent 7px);
+    background-size:60px 22px;
+    background-repeat:repeat-x;
+    background-color:var(--canopy-dark);
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    background: linear-gradient(180deg, var(--canopy-dark) 0%, var(--canopy) 100%);
+    color:var(--paper);
+    text-align:center;
+    padding:56px 20px 70px;
+    position:relative;
+  }
+
+  .mascot{
+    width:96px;
+    height:96px;
+    margin:0 auto 8px;
+    animation: bob 3.2s ease-in-out infinite;
+  }
+  @keyframes bob{
+    0%,100%{ transform: translateY(0) rotate(-3deg); }
+    50%{ transform: translateY(-10px) rotate(3deg); }
+  }
+
+  h1{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:800;
+    font-size:clamp(2.6rem, 8vw, 4.4rem);
+    margin:0;
+    letter-spacing:0.5px;
+    color:var(--sun);
+    text-shadow: 3px 3px 0 var(--canopy-dark), 0 0 24px rgba(255,201,60,0.25);
+  }
+
+  .tagline{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:500;
+    font-size:1.15rem;
+    color:var(--leaf-light);
+    margin-top:10px;
+  }
+
+  /* ---------- Intro ---------- */
+  .intro{
+    max-width:640px;
+    margin:44px auto 8px;
+    text-align:center;
+    padding:0 24px;
+    font-size:1.15rem;
+    color:var(--ink-soft);
+    font-weight:600;
+  }
+
+  /* ---------- Trail ---------- */
+  .trail{
+    display:block;
+    margin:18px auto 0;
+    max-width:520px;
+    width:70%;
+    opacity:0.55;
+  }
+
+  /* ---------- Games grid ---------- */
+  main{
+    max-width:1000px;
+    margin:0 auto;
+    padding:20px 24px 90px;
+  }
+
+  .games{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));
+    gap:40px;
+    margin-top:20px;
+  }
+
+  .card{
+    position:relative;
+    background:var(--paper-card);
+    border-radius:22px;
+    padding:34px 26px 30px;
+    text-align:center;
+    box-shadow: 0 10px 0 rgba(0,0,0,0.08), 0 14px 30px rgba(27,46,31,0.12);
+    border:3px solid var(--canopy);
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .card:hover, .card:focus-within{
+    transform: translateY(-8px) rotate(-0.6deg);
+    box-shadow: 0 16px 0 rgba(0,0,0,0.08), 0 22px 40px rgba(27,46,31,0.18);
+  }
+
+  .sign{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:700;
+    font-size:0.85rem;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    display:inline-block;
+    padding:6px 16px;
+    border-radius:999px;
+    margin-bottom:14px;
+    color:var(--paper);
+  }
+  .card.day .sign{ background:var(--toucan); }
+  .card.night .sign{ background:var(--night); }
+
+  .icon-wrap{
+    width:120px;
+    height:120px;
+    margin:0 auto 14px;
+  }
+  .icon-wrap svg{ width:100%; height:100%; }
+
+  .card.day .icon-wrap{ animation: hop 2.4s ease-in-out infinite; }
+  @keyframes hop{
+    0%,100%{ transform: translateY(0); }
+    30%{ transform: translateY(-14px); }
+    50%{ transform: translateY(0); }
+  }
+  .card.night .icon-wrap{ animation: glide 4.2s ease-in-out infinite; }
+  @keyframes glide{
+    0%,100%{ transform: translateY(0) rotate(0deg); }
+    50%{ transform: translateY(-8px) rotate(3deg); }
+  }
+
+  .card h2{
+    font-family:'Baloo 2', sans-serif;
+    font-size:1.7rem;
+    margin:4px 0 8px;
+    color:var(--canopy-dark);
+  }
+  .card.night h2{ color:var(--night); }
+
+  .card p{
+    font-size:1rem;
+    color:var(--ink-soft);
+    margin:0 0 22px;
+    line-height:1.45;
+  }
+
+  .play-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-family:'Baloo 2', sans-serif;
+    font-weight:700;
+    font-size:1.05rem;
+    text-decoration:none;
+    color:var(--canopy-dark);
+    background:var(--sun);
+    padding:12px 28px;
+    border-radius:999px;
+    box-shadow: 0 5px 0 #C99423;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .play-btn:active{
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 #C99423;
+  }
+  .card.night .play-btn{
+    color:var(--paper);
+    background:var(--night-light);
+    box-shadow: 0 5px 0 #1E1D38;
+  }
+  .card.night .play-btn:active{
+    box-shadow: 0 1px 0 #1E1D38;
+  }
+
+  .paw{ width:18px; height:18px; flex-shrink:0; }
+
+  /* ---------- Coming soon card ---------- */
+  .card.soon{
+    border-style:dashed;
+    opacity:0.75;
+  }
+  .card.soon .icon-wrap{ animation:none; opacity:0.5; }
+  .card.soon .play-btn{
+    background:transparent;
+    color:var(--ink-soft);
+    border:2px dashed var(--ink-soft);
+    box-shadow:none;
+    cursor:default;
+  }
+
+  /* ---------- Footer ---------- */
+  footer{
+    text-align:center;
+    padding:34px 20px 44px;
+    background:var(--canopy-dark);
+    color:var(--leaf-light);
+    font-family:'Baloo 2', sans-serif;
+    font-size:0.95rem;
+  }
+  footer .paws{
+    display:flex;
+    justify-content:center;
+    gap:14px;
+    margin-bottom:14px;
+    opacity:0.8;
+  }
+  footer .paws svg{ width:20px; height:20px; }
+  footer .paws svg:nth-child(2){ transform:translateY(6px); }
+  footer .paws svg:nth-child(4){ transform:translateY(6px); }
+</style>
 </head>
 <body>
 
-  <a href="/saltos/index.html">Dia de Saltos</a><br>
-  <a href="/abismo/index.html">Abismo</a><br>
+<header>
+  <div class="mascot" aria-hidden="true">
+    <!-- Toucan mascot -->
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="46" cy="60" rx="22" ry="26" fill="#0F2E1D"/>
+      <ellipse cx="46" cy="60" rx="22" ry="26" fill="#1B4332"/>
+      <circle cx="55" cy="34" r="17" fill="#1B4332"/>
+      <path d="M55 30 Q90 22 92 34 Q90 44 55 40 Z" fill="#FF6B35"/>
+      <path d="M92 34 Q90 44 55 40" fill="none" stroke="#FFC93C" stroke-width="2"/>
+      <circle cx="60" cy="30" r="3.4" fill="#F2F7ED"/>
+      <circle cx="61" cy="30" r="1.6" fill="#0F2E1D"/>
+      <path d="M28 78 Q22 92 30 96 Q38 92 34 78 Z" fill="#FFC93C"/>
+      <path d="M46 84 Q40 98 48 102 Q56 98 52 84 Z" fill="#FFC93C"/>
+      <ellipse cx="40" cy="58" rx="9" ry="12" fill="#F2F7ED"/>
+    </svg>
+  </div>
+  <h1>Jogos do Funxisco</h1>
+  <p class="tagline">Uma selva cheia de jogos para explorar!</p>
+</header>
+
+<div class="vine-strip" role="presentation"></div>
+
+<main>
+  <p class="intro">Escolhe um bicho e começa a aventura. Cada jogo é um habitat diferente — explora todos!</p>
+
+  <svg class="trail" viewBox="0 0 400 40" aria-hidden="true">
+    <g fill="#1B4332">
+      <ellipse cx="20" cy="20" rx="6" ry="9"/>
+      <ellipse cx="80" cy="14" rx="6" ry="9"/>
+      <ellipse cx="140" cy="24" rx="6" ry="9"/>
+      <ellipse cx="200" cy="16" rx="6" ry="9"/>
+      <ellipse cx="260" cy="24" rx="6" ry="9"/>
+      <ellipse cx="320" cy="14" rx="6" ry="9"/>
+      <ellipse cx="380" cy="20" rx="6" ry="9"/>
+    </g>
+  </svg>
+
+  <div class="games">
+
+    <!-- Dia de Saltos -->
+    <article class="card day">
+      <span class="sign">Habitat diurno</span>
+      <div class="icon-wrap" aria-hidden="true">
+        <!-- Kangaroo -->
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="60" cy="108" rx="34" ry="8" fill="#1B4332" opacity="0.15"/>
+          <path d="M40 100 Q20 95 22 78 Q18 60 30 46 Q28 30 42 22 Q46 34 44 44 Q60 36 72 44 Q78 30 90 26 Q92 40 84 50 Q94 60 92 76 Q98 90 84 98 Q80 84 70 82 Q64 92 50 92 Q44 96 40 100 Z" fill="#FF6B35"/>
+          <ellipse cx="48" cy="30" rx="9" ry="12" fill="#FF6B35"/>
+          <ellipse cx="48" cy="26" rx="4" ry="7" fill="#FFC93C"/>
+          <circle cx="58" cy="34" r="3" fill="#1B2E1F"/>
+          <path d="M32 74 Q10 80 8 100 Q22 104 34 92 Z" fill="#FF6B35"/>
+          <path d="M78 88 Q86 96 82 106 Q72 104 70 94 Z" fill="#FF6B35"/>
+          <path d="M56 92 Q54 100 60 104 Q66 100 62 92 Z" fill="#FF6B35"/>
+        </svg>
+      </div>
+      <h2>Dia de Saltos</h2>
+      <p>Salta de plataforma em plataforma sem tocar no chão!</p>
+      <a class="play-btn" href="https://funxisco.github.io/saltos/index.html">
+        <svg class="paw" viewBox="0 0 24 24" fill="#1B4332"><circle cx="12" cy="15" r="6"/><circle cx="5" cy="7" r="2.6"/><circle cx="12" cy="4" r="2.6"/><circle cx="19" cy="7" r="2.6"/></svg>
+        Jogar
+      </a>
+    </article>
+
+    <!-- Abismo -->
+    <article class="card night">
+      <span class="sign">Habitat noturno</span>
+      <div class="icon-wrap" aria-hidden="true">
+        <!-- Owl -->
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="60" cy="108" rx="34" ry="8" fill="#2B2A4C" opacity="0.15"/>
+          <ellipse cx="60" cy="66" rx="38" ry="40" fill="#2B2A4C"/>
+          <path d="M30 34 Q22 14 40 20 Q34 30 30 34 Z" fill="#2B2A4C"/>
+          <path d="M90 34 Q98 14 80 20 Q86 30 90 34 Z" fill="#2B2A4C"/>
+          <circle cx="44" cy="58" r="14" fill="#F2F7ED"/>
+          <circle cx="76" cy="58" r="14" fill="#F2F7ED"/>
+          <circle cx="44" cy="58" r="6.5" fill="#1B2E1F"/>
+          <circle cx="76" cy="58" r="6.5" fill="#1B2E1F"/>
+          <path d="M60 64 L54 76 L66 76 Z" fill="#FFC93C"/>
+          <path d="M40 92 Q60 104 80 92 Q60 100 40 92 Z" fill="#4A4770"/>
+          <ellipse cx="60" cy="90" rx="20" ry="16" fill="#4A4770"/>
+        </svg>
+      </div>
+      <h2>Abismo</h2>
+      <p>Enfrenta a escuridão e vê até onde consegues descer.</p>
+      <a class="play-btn" href="https://funxisco.github.io/abismo/index.html">
+        <svg class="paw" viewBox="0 0 24 24" fill="#F2F7ED"><circle cx="12" cy="15" r="6"/><circle cx="5" cy="7" r="2.6"/><circle cx="12" cy="4" r="2.6"/><circle cx="19" cy="7" r="2.6"/></svg>
+        Jogar
+      </a>
+    </article>
+
+    <!-- Coming soon -->
+    <article class="card soon">
+      <span class="sign" style="background:#8AA898;">Novo habitat</span>
+      <div class="icon-wrap" aria-hidden="true">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="60" cy="60" r="40" fill="none" stroke="#8AA898" stroke-width="4" stroke-dasharray="10 10"/>
+          <text x="60" y="72" font-size="46" text-anchor="middle" fill="#8AA898" font-family="'Baloo 2', sans-serif">?</text>
+        </svg>
+      </div>
+      <h2>Em breve</h2>
+      <p>Um novo bicho está a chegar à selva. Volta em breve!</p>
+      <span class="play-btn">A preparar…</span>
+    </article>
+
+  </div>
+</main>
+
+<footer>
+  <div class="paws" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="15" r="6"/><circle cx="5" cy="7" r="2.6"/><circle cx="12" cy="4" r="2.6"/><circle cx="19" cy="7" r="2.6"/></svg>
+    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="15" r="6"/><circle cx="5" cy="7" r="2.6"/><circle cx="12" cy="4" r="2.6"/><circle cx="19" cy="7" r="2.6"/></svg>
+    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="15" r="6"/><circle cx="5" cy="7" r="2.6"/><circle cx="12" cy="4" r="2.6"/><circle cx="19" cy="7" r="2.6"/></svg>
+    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="15" r="6"/><circle cx="5" cy="7" r="2.6"/><circle cx="12" cy="4" r="2.6"/><circle cx="19" cy="7" r="2.6"/></svg>
+  </div>
+  Feito com <span style="color:#FF6B35;">♥</span> pelo Francisco
+</footer>
 
 </body>
 </html>
