@@ -233,6 +233,7 @@ const MAX_DEPTH = 5200;         // bottom of the abyss
 const DARK_START = 650;         // depth where it starts getting seriously dark
 const DARK_FULL = 1900;         // depth of near-total darkness
 const MONSTER_MIN_DEPTH = 700;  // monsters only in the dark zone
+const MIN_ENTITY_DEPTH = 8;     // ~1 metre — nothing may appear shallower than this
 const HOUSE_X = 0;              // house world x
 
 const FISH_COLORS = ['#ff6b6b','#ffd93d','#6bcBef','#ff9f43','#a78bfa','#4ade80','#f472b6','#38bdf8','#fbbf24'];
@@ -271,19 +272,22 @@ const DAY_NIGHT_CYCLE = 150; // seconds for a full day->night->day loop
 const fishPool = [];
 const monsterPool = [];
 const squidPool = [];
+const eelPool = [];
 const bubbleParticles = [];
 
 const FISH_COUNT = 46;
 const MONSTER_COUNT = 12;
 const SQUID_COUNT = 10;
 const SQUID_MIN_DEPTH = 2400; // squids drift only in the deepest, darkest water
+const EEL_COUNT = 9;
+const EEL_MIN_DEPTH = 3600;   // electric eels lurk even deeper than the squids
 
 // ---------- Entity factories ----------
 function spawnFishAt(f, nearPlayer){
   const ring = nearPlayer ? rand(W*0.6, W*1.1) : rand(200, W);
   const ang = rand(0, Math.PI*2);
   f.x = player.x + Math.cos(ang)*ring;
-  f.y = clamp(player.y + Math.sin(ang)*ring*0.6, 10, MAX_DEPTH-40);
+  f.y = clamp(player.y + Math.sin(ang)*ring*0.6, MIN_ENTITY_DEPTH, MAX_DEPTH-40);
   f.color = FISH_COLORS[randi(0,FISH_COLORS.length-1)];
   f.size = rand(9,17);
   f.speed = rand(18,42);
@@ -309,6 +313,8 @@ function spawnMonsterAt(m){
   m.hp = 30 + Math.floor(m.size);
   m.maxHp = m.hp;
   m.hue = randi(260,320);
+  m.hunting = false;
+  m.hitFlash = 0;
   m.state='wander';
 }
 function makeMonster(){
@@ -327,15 +333,37 @@ function spawnSquidAt(s){
   s.speed = rand(9,20);
   s.phase = rand(0,Math.PI*2);
   s.hue = randi(190,270);
+  s.hp = 24 + Math.floor(s.size);
+  s.maxHp = s.hp;
+  s.hitFlash = 0;
 }
 function makeSquid(){
   const s = {};
   spawnSquidAt(s);
   return s;
 }
+function spawnEelAt(e){
+  const ring = rand(W*0.7, W*1.3);
+  const ang = rand(0, Math.PI*2);
+  e.x = player.x + Math.cos(ang)*ring;
+  e.y = clamp(EEL_MIN_DEPTH + Math.random()*(MAX_DEPTH-EEL_MIN_DEPTH-60), EEL_MIN_DEPTH, MAX_DEPTH-60);
+  e.size = rand(30,46);
+  e.speed = rand(52,82);
+  e.dir = Math.random()<0.5?-1:1;
+  e.phase = rand(0,Math.PI*2);
+  e.hp = 26 + Math.floor(e.size);
+  e.maxHp = e.hp;
+  e.hitFlash = 0;
+}
+function makeEel(){
+  const e = {};
+  spawnEelAt(e);
+  return e;
+}
 for(let i=0;i<FISH_COUNT;i++) fishPool.push(makeFish());
 for(let i=0;i<MONSTER_COUNT;i++) monsterPool.push(makeMonster());
 for(let i=0;i<SQUID_COUNT;i++) squidPool.push(makeSquid());
+for(let i=0;i<EEL_COUNT;i++) eelPool.push(makeEel());
 
 
 // ---------- Input ----------
@@ -513,21 +541,28 @@ function doAttack(){
   const range = 60 + player.weaponLevel*14;
   const dmg = 18 + player.weaponLevel*16;
   const fx = Math.cos(player.angle), fy = Math.sin(player.angle);
-  for(const m of monsterPool){
-    const dx = m.x - player.x, dy = m.y - player.y;
-    const d = Math.hypot(dx,dy);
-    const dot = d>0 ? (dx*fx + dy*fy)/d : 1;
-    if(d < range && dot > 0.45){
-      m.hp -= dmg;
-      m.hitFlash = 0.2;
-      if(m.hp<=0){
-        spawnPopup(m.x, m.y, '+8 🪙', '#ffd93d');
-        player.coins += 8;
-        spawnMonsterAt(m);
-        updateHUD();
+
+  function strike(list, spawnFn, coinReward){
+    for(const c of list){
+      const dx = c.x - player.x, dy = c.y - player.y;
+      const d = Math.hypot(dx,dy);
+      const dot = d>0 ? (dx*fx + dy*fy)/d : 1;
+      if(d < range && dot > 0.45){
+        c.hp -= dmg;
+        c.hitFlash = 0.2;
+        if(c.hp<=0){
+          spawnPopup(c.x, c.y, '+'+coinReward+' 🪙', '#ffd93d');
+          player.coins += coinReward;
+          if(c.hunting){ c.hunting = false; hunterActive = false; }
+          spawnFn(c);
+          updateHUD();
+        }
       }
     }
   }
+  strike(monsterPool, spawnMonsterAt, 8);
+  strike(squidPool, spawnSquidAt, 12);
+  strike(eelPool, spawnEelAt, 16);
 }
 
 // ---------- Update ----------
@@ -664,9 +699,9 @@ function update(dt){
       m.y += Math.sin(m.phase)*10*dt;
       if(Math.random()<0.004) m.dir*=-1;
     }
-    if(!m.hunting){
-      m.y = clamp(m.y, MONSTER_MIN_DEPTH-100, MAX_DEPTH-30);
-    }
+    m.y = m.hunting
+      ? clamp(m.y, MIN_ENTITY_DEPTH, MAX_DEPTH-30)
+      : clamp(m.y, MONSTER_MIN_DEPTH-100, MAX_DEPTH-30);
     // damage player
     if(!shopOpen && d < m.size*0.6 + player.r && player.invuln<=0){
       const reduce = 1 - player.armorLevel*0.22;
@@ -686,15 +721,64 @@ function update(dt){
     }
   }
 
-  // squid behaviour — slow, harmless, drifting deep-sea life
+  // squid behaviour — dangerous deep-sea predators; can bite the player and can be killed
   for(const s of squidPool){
     const d = dist(s.x,s.y,player.x,player.y);
     if(d > W*2.2) spawnSquidAt(s);
+    if(s.hitFlash>0) s.hitFlash -= dt;
     s.phase += dt*1.0;
-    s.x += s.dir*s.speed*dt;
-    s.y = s.baseY + Math.sin(s.phase*0.5)*30;
-    if(Math.random()<0.0025) s.dir *= -1;
-    s.y = clamp(s.y, SQUID_MIN_DEPTH-120, MAX_DEPTH-40);
+    const aggro = 300;
+    if(d < aggro){
+      const dx = player.x-s.x, dy = player.y-s.y, dd = Math.hypot(dx,dy)||1;
+      s.x += (dx/dd)*s.speed*1.5*dt;
+      s.y += (dy/dd)*s.speed*1.5*dt;
+      s.dir = dx>0?1:-1;
+    } else {
+      s.x += s.dir*s.speed*dt;
+      s.y = s.baseY + Math.sin(s.phase*0.5)*30;
+      if(Math.random()<0.0025) s.dir *= -1;
+    }
+    s.y = clamp(s.y, Math.max(MIN_ENTITY_DEPTH, SQUID_MIN_DEPTH-150), MAX_DEPTH-40);
+    // damage player
+    if(!shopOpen && d < s.size*0.55 + player.r && player.invuln<=0){
+      const reduce = 1 - player.armorLevel*0.22;
+      const dmg = Math.max(4, 20*reduce);
+      player.health -= dmg;
+      player.invuln = 1.0;
+      flashDamage();
+      if(player.health<=0){ respawnPlayer(); }
+      updateHUD();
+    }
+  }
+
+  // electric eel behaviour — fast, aggressive, deepest and deadliest of all
+  for(const e of eelPool){
+    const d = dist(e.x,e.y,player.x,player.y);
+    if(d > W*2.3) spawnEelAt(e);
+    if(e.hitFlash>0) e.hitFlash -= dt;
+    e.phase += dt*3.2;
+    const aggro = 340;
+    if(d < aggro){
+      const dx = player.x-e.x, dy = player.y-e.y, dd = Math.hypot(dx,dy)||1;
+      e.x += (dx/dd)*e.speed*dt;
+      e.y += (dy/dd)*e.speed*dt;
+      e.dir = dx>0?1:-1;
+    } else {
+      e.x += e.dir*e.speed*0.35*dt;
+      e.y += Math.sin(e.phase*0.4)*14*dt;
+      if(Math.random()<0.004) e.dir *= -1;
+    }
+    e.y = clamp(e.y, Math.max(MIN_ENTITY_DEPTH, EEL_MIN_DEPTH-150), MAX_DEPTH-30);
+    // damage player — electric shock, hits hard and shrugs off some armor
+    if(!shopOpen && d < e.size*0.5 + player.r && player.invuln<=0){
+      const reduce = 1 - player.armorLevel*0.15;
+      const dmg = Math.max(6, 26*reduce);
+      player.health -= dmg;
+      player.invuln = 1.0;
+      flashDamage();
+      if(player.health<=0){ respawnPlayer(); }
+      updateHUD();
+    }
   }
 
   // bubbles ambient
@@ -1063,7 +1147,7 @@ function drawSquid(s){
   }
 
   // mantle (bell)
-  ctx.fillStyle = `hsla(${s.hue},55%,42%,0.6)`;
+  ctx.fillStyle = s.hitFlash>0 ? 'rgba(255,255,255,0.85)' : `hsla(${s.hue},55%,42%,0.6)`;
   ctx.beginPath();
   ctx.ellipse(0,-s.size*0.12, s.size*0.5*pulse, s.size*0.68, 0, 0, Math.PI*2);
   ctx.fill();
@@ -1077,6 +1161,81 @@ function drawSquid(s){
   ctx.beginPath(); ctx.arc(s.size*0.17,-s.size*0.18,s.size*0.035,0,Math.PI*2); ctx.fill();
 
   ctx.restore();
+
+  if(s.hp < s.maxHp){
+    ctx.save();
+    const w=44;
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    ctx.fillRect(sx-w/2, sy-s.size-16, w, 6);
+    ctx.fillStyle='#5fe0c7';
+    ctx.fillRect(sx-w/2, sy-s.size-16, w*clamp(s.hp/s.maxHp,0,1), 6);
+    ctx.restore();
+  }
+}
+
+function drawEel(e){
+  const sx = e.x - camera.x, sy = e.y - camera.y;
+  if(sx<-130||sx>W+130||sy<-130||sy>H+130) return;
+  ctx.save();
+  ctx.translate(sx,sy);
+  ctx.scale(e.dir<0?-1:1,1);
+
+  const segs = 7, len = e.size*1.9;
+  function pathBody(){
+    ctx.beginPath();
+    for(let i=0;i<=segs;i++){
+      const t = i/segs;
+      const lx = -len*t;
+      const ly = Math.sin(e.phase + t*4.2)*e.size*0.3;
+      if(i===0) ctx.moveTo(lx,ly); else ctx.lineTo(lx,ly);
+    }
+  }
+
+  // body
+  ctx.strokeStyle = e.hitFlash>0 ? '#ffffff' : '#243252';
+  ctx.lineWidth = e.size*0.3;
+  ctx.lineCap = 'round';
+  pathBody();
+  ctx.stroke();
+
+  // electric glow stripe, additive
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = 'rgba(255,224,102,0.55)';
+  ctx.lineWidth = e.size*0.1;
+  pathBody();
+  ctx.stroke();
+  ctx.restore();
+
+  // head
+  ctx.fillStyle = e.hitFlash>0 ? '#ffffff' : '#243252';
+  ctx.beginPath(); ctx.arc(4, 0, e.size*0.24, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#ffe066';
+  ctx.beginPath(); ctx.arc(9, -e.size*0.05, e.size*0.05, 0, Math.PI*2); ctx.fill();
+
+  // random spark flicker
+  if(Math.random() < 0.35){
+    ctx.strokeStyle = 'rgba(255,240,150,0.85)';
+    ctx.lineWidth = 1.4;
+    const t = rand(0.1,0.8);
+    const bx = -len*t, by = Math.sin(e.phase+t*4.2)*e.size*0.3;
+    ctx.beginPath();
+    ctx.moveTo(bx,by);
+    ctx.lineTo(bx+rand(-8,8), by+rand(-8,8));
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  if(e.hp < e.maxHp){
+    ctx.save();
+    const w=48;
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    ctx.fillRect(sx-w/2, sy-e.size-16, w, 6);
+    ctx.fillStyle='#ffe066';
+    ctx.fillRect(sx-w/2, sy-e.size-16, w*clamp(e.hp/e.maxHp,0,1), 6);
+    ctx.restore();
+  }
 }
 
 function drawPlayer(){
@@ -1289,6 +1448,7 @@ function render(){
   for(const f of fishPool) drawFish(f);
   for(const m of monsterPool) drawMonster(m);
   for(const s of squidPool) drawSquid(s);
+  for(const e of eelPool) drawEel(e);
   drawBubbles();
   drawPlayer();
 
