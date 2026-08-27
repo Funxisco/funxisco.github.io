@@ -271,13 +271,19 @@ let gameStarted = false;
 let shopOpen = false;
 let lastTime = 0;
 let cloudDrift = 0; // clouds always drift the same direction, independent of the player
+let dayTime = 0;    // 0..1 progress through the day/night cycle
+let dayFactor = 1;  // 1 = full daylight, 0 = full night
+const DAY_NIGHT_CYCLE = 150; // seconds for a full day->night->day loop
 
 const fishPool = [];
 const monsterPool = [];
+const squidPool = [];
 const bubbleParticles = [];
 
 const FISH_COUNT = 46;
 const MONSTER_COUNT = 12;
+const SQUID_COUNT = 10;
+const SQUID_MIN_DEPTH = 2400; // squids drift only in the deepest, darkest water
 
 // ---------- Entity factories ----------
 function spawnFishAt(f, nearPlayer){
@@ -317,8 +323,27 @@ function makeMonster(){
   spawnMonsterAt(m);
   return m;
 }
+function spawnSquidAt(s){
+  const ring = rand(W*0.7, W*1.4);
+  const ang = rand(0, Math.PI*2);
+  s.x = player.x + Math.cos(ang)*ring;
+  s.y = clamp(SQUID_MIN_DEPTH + Math.random()*(MAX_DEPTH-SQUID_MIN_DEPTH-80), SQUID_MIN_DEPTH, MAX_DEPTH-80);
+  s.baseY = s.y;
+  s.size = rand(22,40);
+  s.dir = Math.random()<0.5?-1:1;
+  s.speed = rand(9,20);
+  s.phase = rand(0,Math.PI*2);
+  s.hue = randi(190,270);
+}
+function makeSquid(){
+  const s = {};
+  spawnSquidAt(s);
+  return s;
+}
 for(let i=0;i<FISH_COUNT;i++) fishPool.push(makeFish());
 for(let i=0;i<MONSTER_COUNT;i++) monsterPool.push(makeMonster());
+for(let i=0;i<SQUID_COUNT;i++) squidPool.push(makeSquid());
+
 
 // ---------- Input ----------
 window.addEventListener('keydown', e=>{
@@ -528,6 +553,12 @@ function update(dt){
 
   cloudDrift += CLOUD_WIND_SPEED*dt;
 
+  dayTime = (dayTime + dt/DAY_NIGHT_CYCLE) % 1;
+  dayFactor = (Math.cos(dayTime*Math.PI*2)+1)/2; // 1 = day, 0 = night
+  curSkyTop = lerpColor(SKY_TOP_NIGHT, SKY_TOP_DAY, dayFactor);
+  curSkyBottom = lerpColor(SKY_BOTTOM_NIGHT, SKY_BOTTOM_DAY, dayFactor);
+  curWaterSurface = lerpColor(WATER_SURFACE_NIGHT, WATER_SURFACE_DAY, dayFactor);
+
   // input -> acceleration
   let ax=0, ay=0, inputActive=false;
   if(keys['ArrowLeft']){ ax -= ACCEL; inputActive=true; }
@@ -627,6 +658,17 @@ function update(dt){
     }
   }
 
+  // squid behaviour — slow, harmless, drifting deep-sea life
+  for(const s of squidPool){
+    const d = dist(s.x,s.y,player.x,player.y);
+    if(d > W*2.2) spawnSquidAt(s);
+    s.phase += dt*1.0;
+    s.x += s.dir*s.speed*dt;
+    s.y = s.baseY + Math.sin(s.phase*0.5)*30;
+    if(Math.random()<0.0025) s.dir *= -1;
+    s.y = clamp(s.y, SQUID_MIN_DEPTH-120, MAX_DEPTH-40);
+  }
+
   // bubbles ambient
   if(Math.random()<0.5){
     bubbleParticles.push({
@@ -677,16 +719,24 @@ function updateHUD(){
 }
 
 // ---------- Depth color ----------
-const SKY_TOP = [125,196,235];
-const SKY_BOTTOM = [186,225,240];
-const WATER_SURFACE = [46,150,180];
+const SKY_TOP_DAY = [125,196,235];
+const SKY_BOTTOM_DAY = [186,225,240];
+const WATER_SURFACE_DAY = [46,150,180];
+const SKY_TOP_NIGHT = [8,12,36];
+const SKY_BOTTOM_NIGHT = [30,38,66];
+const WATER_SURFACE_NIGHT = [6,16,38];
 const WATER_MID = [10,60,95];
 const WATER_DEEP = [3,10,20];
 const WATER_ABYSS = [0,0,2];
 
+// current blended colors, refreshed once per frame in update()
+let curSkyTop = SKY_TOP_DAY.slice();
+let curSkyBottom = SKY_BOTTOM_DAY.slice();
+let curWaterSurface = WATER_SURFACE_DAY.slice();
+
 function waterColorAt(depth){
-  if(depth <= 0) return WATER_SURFACE;
-  if(depth < DARK_START) return lerpColor(WATER_SURFACE, WATER_MID, depth/DARK_START);
+  if(depth <= 0) return curWaterSurface;
+  if(depth < DARK_START) return lerpColor(curWaterSurface, WATER_MID, depth/DARK_START);
   if(depth < DARK_FULL) return lerpColor(WATER_MID, WATER_DEEP, (depth-DARK_START)/(DARK_FULL-DARK_START));
   const t = clamp((depth-DARK_FULL)/1400,0,1);
   return lerpColor(WATER_DEEP, WATER_ABYSS, t);
@@ -696,20 +746,47 @@ function waterColorAt(depth){
 function drawBackground(){
   // Sky (above water)
   const skyGrad = ctx.createLinearGradient(0,-camera.y+SKY_MIN,0,-camera.y+WATER_LEVEL);
-  skyGrad.addColorStop(0, rgb(SKY_TOP));
-  skyGrad.addColorStop(1, rgb(SKY_BOTTOM));
+  skyGrad.addColorStop(0, rgb(curSkyTop));
+  skyGrad.addColorStop(1, rgb(curSkyBottom));
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, SKY_MIN-camera.y, W, (WATER_LEVEL-SKY_MIN));
 
-  // sun
-  ctx.save();
-  ctx.globalAlpha = 0.9;
+  // stars, fade in as night falls
+  if(dayFactor < 0.6){
+    ctx.save();
+    ctx.globalAlpha = clamp((0.6-dayFactor)/0.6, 0, 1)*0.9;
+    ctx.fillStyle = '#fff';
+    const starSpacing = 90;
+    const startIdx = Math.floor((camera.x*0.15 - W)/starSpacing)-1;
+    for(let i=startIdx;i<startIdx+18;i++){
+      const sx = i*starSpacing - camera.x*0.15 + W/2;
+      const sy = 20 + ((i*53)%220) - camera.y*0.05;
+      if(sy < -camera.y+SKY_MIN || sy > WATER_LEVEL-camera.y) continue;
+      const tw = 1.2 + Math.sin(performance.now()/500 + i)*0.6;
+      ctx.beginPath(); ctx.arc(sx, sy, tw, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // sun by day, moon by night — crossfaded
   const sunX = (HOUSE_X - camera.x*0.2) % (W*3) - W;
-  ctx.fillStyle = '#fff6d0';
-  ctx.beginPath();
-  ctx.arc(sunX + W*1.4, 90 - camera.y*0.05, 46, 0, Math.PI*2);
-  ctx.fill();
-  ctx.restore();
+  const bodyX = sunX + W*1.4, bodyY = 90 - camera.y*0.05;
+  if(dayFactor > 0.05){
+    ctx.save();
+    ctx.globalAlpha = 0.9*dayFactor;
+    ctx.fillStyle = '#fff6d0';
+    ctx.beginPath(); ctx.arc(bodyX, bodyY, 46, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  if(dayFactor < 0.95){
+    ctx.save();
+    ctx.globalAlpha = 0.9*(1-dayFactor);
+    ctx.fillStyle = '#eef3ff';
+    ctx.beginPath(); ctx.arc(bodyX, bodyY, 34, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = rgb(curSkyTop);
+    ctx.beginPath(); ctx.arc(bodyX+14, bodyY-8, 30, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
 
   // clouds and birds (parallax)
   drawClouds();
@@ -733,7 +810,7 @@ function drawBackground(){
   // caustics / light shafts near surface
   if(topDepth < 900){
     ctx.save();
-    ctx.globalAlpha = 0.06;
+    ctx.globalAlpha = 0.06*dayFactor;
     ctx.strokeStyle = '#fff';
     for(let i=0;i<6;i++){
       const x = ((i*260 - camera.x*0.5) % (W+300)) - 150;
@@ -930,6 +1007,53 @@ function drawMonster(m){
     ctx.fillRect(sx-w/2, sy-m.size-16, w*clamp(m.hp/m.maxHp,0,1), 6);
     ctx.restore();
   }
+}
+
+function drawSquid(s){
+  const sx = s.x - camera.x, sy = s.y - camera.y;
+  if(sx<-90||sx>W+90||sy<-110||sy>H+110) return;
+  const pulse = 0.75 + Math.sin(s.phase*3)*0.25;
+  ctx.save();
+  ctx.translate(sx,sy);
+  ctx.scale(s.dir<0?-1:1,1);
+
+  // bioluminescent glow
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const glow = ctx.createRadialGradient(0,0,2,0,0,s.size*2);
+  glow.addColorStop(0, `hsla(${s.hue},90%,70%,${0.32*pulse})`);
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(0,0,s.size*2,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // trailing tentacles
+  ctx.strokeStyle = `hsla(${s.hue},50%,60%,0.45)`;
+  ctx.lineWidth = 2;
+  for(let i=-3;i<=3;i++){
+    const tx = i*s.size*0.11;
+    const sway = Math.sin(s.phase*2+i)*6;
+    ctx.beginPath();
+    ctx.moveTo(tx, s.size*0.5);
+    ctx.quadraticCurveTo(tx+sway*0.6, s.size*0.95, tx+sway, s.size*1.4);
+    ctx.stroke();
+  }
+
+  // mantle (bell)
+  ctx.fillStyle = `hsla(${s.hue},55%,42%,0.6)`;
+  ctx.beginPath();
+  ctx.ellipse(0,-s.size*0.12, s.size*0.5*pulse, s.size*0.68, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // eyes
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath(); ctx.arc(-s.size*0.17,-s.size*0.18,s.size*0.08,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s.size*0.17,-s.size*0.18,s.size*0.08,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(-s.size*0.17,-s.size*0.18,s.size*0.035,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s.size*0.17,-s.size*0.18,s.size*0.035,0,Math.PI*2); ctx.fill();
+
+  ctx.restore();
 }
 
 function drawPlayer(){
@@ -1141,6 +1265,7 @@ function render(){
 
   for(const f of fishPool) drawFish(f);
   for(const m of monsterPool) drawMonster(m);
+  for(const s of squidPool) drawSquid(s);
   drawBubbles();
   drawPlayer();
 
