@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Abismo — Jogo do Mergulhador</title>
+<title>Abismo — Jogo do Mergulhador - v1</title>
 <style>
   :root{
     --panel-bg: rgba(6, 20, 28, 0.86);
@@ -39,8 +39,9 @@
   .bar-fill{height:100%; border-radius:6px; transition: width .15s ease;}
   .health-fill{background: linear-gradient(90deg,#ff5d5d,#ff9f5d);}
   .oxy-fill{background: linear-gradient(90deg,#5fc9ff,#5fe0c7);}
-  #coinCount, #depthCount{font-weight:600; color:var(--accent-warm); min-width:52px; text-align:right;}
+  #coinCount, #depthCount, #highscoreCount{font-weight:600; color:var(--accent-warm); min-width:52px; text-align:right;}
   #depthCount{color:var(--accent);}
+  #highscoreCount{color:#ffe066;}
 
   .hud-hint{
     position:absolute; left:50%; transform:translateX(-50%);
@@ -162,6 +163,7 @@
   <div class="hud-topleft">
     <div class="hud-row"><span class="icon">❤️</span><div class="bar-track"><div id="healthFill" class="bar-fill health-fill" style="width:100%"></div></div></div>
     <div class="hud-row"><span class="icon">🪙</span><span>Moedas</span><span id="coinCount">0</span></div>
+    <div class="hud-row"><span class="icon">🏆</span><span>Recorde</span><span id="highscoreCount">0</span></div>
     <div class="hud-row"><span class="icon">📏</span><span>Profundidade</span><span id="depthCount">0m</span></div>
   </div>
   <div id="hint" class="hud-hint"></div>
@@ -263,6 +265,9 @@ let gameStarted = false;
 let shopOpen = false;
 let shopSuppressed = false; // true right after a manual close, until the player leaves the shop zone
 let hunterActive = false;   // true while a monster has been summoned to hunt an idle diver
+let whaleTimer = 0;
+let whale = null;           // active whale crossing the screen, or null
+const WHALE_INTERVAL = 20;  // seconds between whale passes
 let lastTime = 0;
 let cloudDrift = 0; // clouds always drift the same direction, independent of the player
 let dayTime = 0;    // 0..1 progress through the day/night cycle
@@ -274,6 +279,11 @@ const monsterPool = [];
 const squidPool = [];
 const eelPool = [];
 const bubbleParticles = [];
+const npcDivers = [];
+const NPC_DIVER_COUNT = 2;
+const NPC_SUIT_COLORS = ['#b45309', '#7c3aed'];
+const clamPool = [];
+const CLAM_COUNT = 9;
 
 const FISH_COUNT = 46;
 const MONSTER_COUNT = 12;
@@ -360,10 +370,40 @@ function makeEel(){
   spawnEelAt(e);
   return e;
 }
+function makeNpcDiver(idx){
+  return {
+    x: HOUSE_X + rand(-300,300),
+    y: clamp(rand(60,900), MIN_ENTITY_DEPTH+20, 1400),
+    angle: 0,
+    swimPhase: rand(0,Math.PI*2),
+    targetX: 0, targetY: 0,
+    retarget: 0,
+    suitColor: NPC_SUIT_COLORS[idx % NPC_SUIT_COLORS.length],
+  };
+}
+function spawnClamAt(c){
+  const ring = rand(300, W*1.2);
+  const ang = rand(0, Math.PI*2);
+  c.x = player.x + Math.cos(ang)*ring;
+  c.y = clamp(player.y + Math.sin(ang)*ring*0.4, MIN_ENTITY_DEPTH, 2200);
+  c.size = rand(16,24);
+  c.state = 'closed';
+  c.timer = rand(2,5);
+  c.openAmount = 0;
+  c.bitten = false;
+  c.collected = false;
+}
+function makeClam(){
+  const c = {};
+  spawnClamAt(c);
+  return c;
+}
 for(let i=0;i<FISH_COUNT;i++) fishPool.push(makeFish());
 for(let i=0;i<MONSTER_COUNT;i++) monsterPool.push(makeMonster());
 for(let i=0;i<SQUID_COUNT;i++) squidPool.push(makeSquid());
 for(let i=0;i<EEL_COUNT;i++) eelPool.push(makeEel());
+for(let i=0;i<NPC_DIVER_COUNT;i++) npcDivers.push(makeNpcDiver(i));
+for(let i=0;i<CLAM_COUNT;i++) clamPool.push(makeClam());
 
 
 // ---------- Input ----------
@@ -585,6 +625,20 @@ function triggerHunter(){
   target.hue = 0; // angry red while hunting
   showHint('Um monstro reparou que estás parado!', 2.6);
 }
+
+function spawnWhale(){
+  const dir = Math.random()<0.5 ? 1 : -1;
+  const length = 440, height = 140;
+  const startX = dir>0 ? camera.x - W*0.7 : camera.x + W*1.7;
+  const y = clamp(camera.y + H*rand(0.3,0.7), MIN_ENTITY_DEPTH+50, MAX_DEPTH-150);
+  const duration = rand(7,9); // seconds to cross the visible screen
+  whale = {
+    x: startX, y, dir, length, height,
+    speed: (W*2.4)/duration,
+    phase: 0,
+  };
+  showHint('Uma baleia gigante atravessa as águas!', 3);
+}
 const BUOY_ACCEL = 95; // rise briskly toward the surface when idle
 const CLOUD_WIND_SPEED = 9; // px/sec, clouds always drift this direction
 
@@ -781,6 +835,99 @@ function update(dt){
     }
   }
 
+  // NPC divers — wander around randomly, purely for atmosphere
+  for(const n of npcDivers){
+    n.retarget -= dt;
+    if(n.retarget<=0){
+      n.targetX = player.x + rand(-600,600);
+      n.targetY = clamp(player.y + rand(-400,400), MIN_ENTITY_DEPTH+20, 1400);
+      n.retarget = rand(4,9);
+    }
+    const dx = n.targetX-n.x, dy = n.targetY-n.y, dd = Math.hypot(dx,dy)||1;
+    const spd = 42;
+    const vx = (dx/dd)*spd, vy = (dy/dd)*spd;
+    n.x += vx*dt;
+    n.y += vy*dt;
+    n.y = clamp(n.y, MIN_ENTITY_DEPTH, MAX_DEPTH-40);
+    n.swimPhase += dt*2.4;
+    const speed = Math.hypot(vx,vy);
+    if(speed>2){
+      const target = Math.atan2(vy,vx);
+      n.angle = lerpAngle(n.angle, target, Math.min(1,dt*4));
+    }
+    // keep them roughly near the player so they stay relevant to what's on screen
+    if(dist(n.x,n.y,player.x,player.y) > W*2.6){
+      n.x = player.x + rand(-500,500);
+      n.y = clamp(player.y + rand(-300,300), MIN_ENTITY_DEPTH+20, 1400);
+      n.retarget = 0;
+    }
+  }
+
+  // clam shells — open to reveal a pearl worth 10 coins, then snap shut (dangerous if you're inside!)
+  for(const c of clamPool){
+    const d = dist(c.x,c.y,player.x,player.y);
+    if(d > W*2.4) spawnClamAt(c);
+    c.timer -= dt;
+    if(c.timer<=0){
+      if(c.state==='closed'){ c.state='opening'; c.timer=0.4; c.collected=false; }
+      else if(c.state==='opening'){ c.state='open'; c.timer=rand(4,7); }
+      else if(c.state==='open'){ c.state='closing'; c.timer=0.3; c.bitten=false; }
+      else if(c.state==='closing'){ c.state='closed'; c.timer=rand(3,6); }
+    }
+    if(c.state==='closed') c.openAmount = 0;
+    else if(c.state==='opening') c.openAmount = clamp(1-(c.timer/0.4), 0, 1);
+    else if(c.state==='open') c.openAmount = 1;
+    else if(c.state==='closing') c.openAmount = clamp(c.timer/0.3, 0, 1);
+
+    // collect the pearl as soon as the shell is mostly open (forgiving hitbox)
+    if((c.state==='open' || (c.state==='opening' && c.openAmount>0.5)) && !c.collected && d < c.size + player.r + 26){
+      c.collected = true;
+      player.coins += 10;
+      spawnPopup(c.x, c.y-10, '+10 🪙 pérola!', '#ffd93d');
+      updateHUD();
+    }
+    // caught in the shell as it snaps shut — lose half your life
+    if(c.state==='closing' && !c.bitten && d < c.size+player.r+4 && player.invuln<=0){
+      c.bitten = true;
+      player.health -= player.maxHealth*0.5;
+      player.invuln = 1.0;
+      flashDamage();
+      showHint('A concha apanhou-te!', 2.2);
+      if(player.health<=0){ respawnPlayer(); }
+      updateHUD();
+    }
+  }
+
+  // giant whale — sweeps across the screen every 20s, eating fish and the player
+  whaleTimer += dt;
+  if(whaleTimer >= WHALE_INTERVAL && !whale){
+    whaleTimer = 0;
+    spawnWhale();
+  }
+  if(whale){
+    whale.phase += dt*1.5;
+    whale.x += whale.dir*whale.speed*dt;
+    const halfL = whale.length/2, halfH = whale.height/2;
+
+    for(const f of fishPool){
+      if(Math.abs(f.x-whale.x) < halfL*0.85 && Math.abs(f.y-whale.y) < halfH*0.85){
+        spawnFishAt(f, true);
+      }
+    }
+
+    if(!shopOpen && player.invuln<=0 &&
+       Math.abs(player.x-whale.x) < halfL*0.8 && Math.abs(player.y-whale.y) < halfH*0.8){
+      player.health = 0;
+      flashDamage();
+      respawnPlayer();
+      player.invuln = 2;
+      showHint('Foste engolido pela baleia!', 2.8);
+    }
+
+    const gone = whale.dir>0 ? whale.x > camera.x + W*1.9 : whale.x < camera.x - W*0.9;
+    if(gone) whale = null;
+  }
+
   // bubbles ambient
   if(Math.random()<0.5){
     bubbleParticles.push({
@@ -791,7 +938,7 @@ function update(dt){
   for(let i=bubbleParticles.length-1;i>=0;i--){
     const b = bubbleParticles[i];
     b.age += dt; b.y += b.vy*dt; b.x += Math.sin(b.age*4)*6*dt;
-    if(b.age>b.life) bubbleParticles.splice(i,1);
+    if(b.age>b.life || b.y<=0) bubbleParticles.splice(i,1);
   }
 
   if(hintTimer>0){
@@ -818,9 +965,19 @@ function flashDamage(){
   setTimeout(()=> el.classList.remove('show'), 140);
 }
 
+let highScore = 0;
+try {
+  highScore = parseInt(localStorage.getItem('mergulhador_highscore') || '0', 10) || 0;
+} catch(e) { highScore = 0; }
+
 function updateHUD(){
   document.getElementById('healthFill').style.width = clamp(player.health/player.maxHealth*100,0,100)+'%';
   document.getElementById('coinCount').textContent = player.coins;
+  if(player.coins > highScore){
+    highScore = player.coins;
+    try { localStorage.setItem('mergulhador_highscore', String(highScore)); } catch(e) { /* storage unavailable */ }
+  }
+  document.getElementById('highscoreCount').textContent = highScore;
   const depthM = Math.max(0, Math.round(player.y/8));
   document.getElementById('depthCount').textContent = depthM+'m';
 }
@@ -1070,6 +1227,55 @@ function drawFish(f){
   ctx.restore();
 }
 
+function drawClam(c){
+  const sx = c.x - camera.x, sy = c.y - camera.y;
+  if(sx<-60||sx>W+60||sy<-60||sy>H+60) return;
+  const open = c.openAmount;
+  const danger = c.state==='closing';
+  ctx.save();
+  ctx.translate(sx,sy);
+
+  // bottom valve
+  ctx.fillStyle = danger ? '#e8b4a0' : '#d8c4a0';
+  ctx.beginPath();
+  ctx.ellipse(0, c.size*0.3, c.size, c.size*0.55, 0, 0, Math.PI, false);
+  ctx.fill();
+  ctx.strokeStyle = '#a8916c'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // pearl, visible while opening/open — hidden once collected until the next cycle
+  if(open > 0.15 && !c.collected){
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, (open-0.15)/0.3);
+    const shine = 0.6 + Math.sin(performance.now()/300)*0.4;
+    ctx.fillStyle = '#fdfdfd';
+    ctx.beginPath(); ctx.arc(0, -2, c.size*0.28, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = `rgba(255,255,255,${0.5*shine})`;
+    ctx.beginPath(); ctx.arc(-c.size*0.08, -c.size*0.12, c.size*0.1, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // top valve — hinges open/shut around the back
+  ctx.save();
+  ctx.translate(-c.size*0.9, 0);
+  ctx.rotate(-open*1.1);
+  ctx.translate(c.size*0.9, 0);
+  ctx.fillStyle = danger ? '#e8b4a0' : '#e8d5ae';
+  ctx.beginPath();
+  ctx.ellipse(0, -c.size*0.3, c.size, c.size*0.55, 0, Math.PI, Math.PI*2, false);
+  ctx.fill();
+  ctx.strokeStyle = '#a8916c'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = 'rgba(168,145,108,0.4)';
+  for(let i=-2;i<=2;i++){
+    ctx.beginPath();
+    ctx.moveTo(i*c.size*0.3, -c.size*0.1);
+    ctx.lineTo(i*c.size*0.35, -c.size*0.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.restore();
+}
+
 function drawMonster(m){
   const sx = m.x - camera.x, sy = m.y - camera.y;
   if(sx<-80||sx>W+80||sy<-80||sy>H+80) return;
@@ -1238,38 +1444,129 @@ function drawEel(e){
   }
 }
 
-function drawPlayer(){
-  const sx = W/2, sy = player.y - camera.y;
-  const bob = Math.sin(player.swimPhase)*3;
-
+function drawWhale(){
+  if(!whale) return;
+  const sx = whale.x - camera.x, sy = whale.y - camera.y;
+  if(sx < -whale.length*1.6 || sx > W+whale.length*1.6) return;
   ctx.save();
-  ctx.translate(sx, sy+bob);   // vertical bob stays upright regardless of rotation
-  ctx.rotate(player.angle);    // nose points in the actual swimming direction
+  ctx.translate(sx, sy);
+  ctx.scale(whale.dir<0?-1:1, 1);
 
-  if(player.invuln>0 && Math.floor(player.invuln*14)%2===0){
-    ctx.globalAlpha = 0.4;
+  // trailing wake bubbles
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = '#dff7f5';
+  for(let i=0;i<12;i++){
+    const bx = -whale.length*0.5 - i*24 - Math.sin(whale.phase+i)*6;
+    const by = Math.sin(whale.phase*2+i)*12;
+    ctx.beginPath(); ctx.arc(bx,by, 2+Math.random()*3, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+
+  // tail flukes
+  const tailFlap = Math.sin(whale.phase*2)*16;
+  ctx.fillStyle = '#31485f';
+  ctx.beginPath();
+  ctx.moveTo(-whale.length*0.46, 0);
+  ctx.quadraticCurveTo(-whale.length*0.62, -22+tailFlap, -whale.length*0.74, -44+tailFlap);
+  ctx.lineTo(-whale.length*0.58, 0);
+  ctx.lineTo(-whale.length*0.74, 44-tailFlap);
+  ctx.quadraticCurveTo(-whale.length*0.62, 22-tailFlap, -whale.length*0.46, 0);
+  ctx.fill();
+
+  // body
+  ctx.fillStyle = '#37506b';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, whale.length*0.5, whale.height*0.5, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // pale belly
+  ctx.fillStyle = '#e7eef0';
+  ctx.beginPath();
+  ctx.ellipse(-whale.length*0.02, whale.height*0.22, whale.length*0.4, whale.height*0.24, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // flipper
+  ctx.fillStyle = '#2c4258';
+  ctx.beginPath();
+  ctx.ellipse(whale.length*0.02, whale.height*0.32, whale.length*0.13, whale.height*0.11, 0.5, 0, Math.PI*2);
+  ctx.fill();
+
+  // mouth line
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(whale.length*0.3, whale.height*0.14);
+  ctx.quadraticCurveTo(whale.length*0.43, whale.height*0.22, whale.length*0.49, whale.height*0.09);
+  ctx.stroke();
+
+  // eye
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(whale.length*0.37, -whale.height*0.06, 5, 0, Math.PI*2); ctx.fill();
+
+  // blowhole spray
+  if(Math.sin(whale.phase*1.3) > 0.85){
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(whale.length*0.1, -whale.height*0.5);
+    ctx.lineTo(whale.length*0.06, -whale.height*0.78);
+    ctx.moveTo(whale.length*0.1, -whale.height*0.5);
+    ctx.lineTo(whale.length*0.16, -whale.height*0.74);
+    ctx.stroke();
   }
 
-  const finFlap = Math.sin(player.swimPhase*2)*4;
+  ctx.restore();
+}
 
-  // fins (trail behind, along -x)
-  ctx.fillStyle = '#0ea5a0';
-  ctx.beginPath();
-  ctx.ellipse(-19, -5+finFlap*0.3, 11, 5, -0.35, 0, Math.PI*2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(-19, 5-finFlap*0.3, 11, 5, 0.35, 0, Math.PI*2);
-  ctx.fill();
+// Shared figure used for the player and the wandering NPC divers.
+// Assumes the context is already translated to the diver's screen position and rotated to its facing angle.
+function drawDiverFigure(suitColor, phase, armorLevel){
+  // legs — kick alternately, each ending in a flipper
+  for(let side=-1; side<=1; side+=2){
+    const kick = Math.sin(phase*2 + (side<0?0:Math.PI)) * 6;
+    ctx.strokeStyle = suitColor;
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-8, side*5);
+    ctx.lineTo(-19, side*7 + kick*0.4);
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(-19, side*7 + kick*0.4);
+    ctx.rotate(side*0.3 + kick*0.03);
+    ctx.fillStyle = '#0ea5a0';
+    ctx.beginPath();
+    ctx.ellipse(-8, 0, 11, 5, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // arms — swing alternately, small hand at the end
+  for(let side=-1; side<=1; side+=2){
+    const swing = Math.sin(phase*2 + (side<0?Math.PI:0)) * 10;
+    ctx.strokeStyle = suitColor;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(2, side*9);
+    ctx.lineTo(14+swing*0.3, side*13 + swing*0.5);
+    ctx.stroke();
+    ctx.fillStyle = '#e8c9a0';
+    ctx.beginPath();
+    ctx.arc(14+swing*0.3, side*13 + swing*0.5, 3.2, 0, Math.PI*2);
+    ctx.fill();
+  }
 
   // wetsuit body (oriented along direction of travel)
-  ctx.fillStyle = '#0f766e';
+  ctx.fillStyle = suitColor;
   ctx.beginPath();
   ctx.ellipse(-4, 0, 20, 14, 0, 0, Math.PI*2);
   ctx.fill();
 
   // armor overlay
-  if(player.armorLevel>0){
-    ctx.fillStyle = `rgba(180,190,200,${0.35+player.armorLevel*0.2})`;
+  if(armorLevel>0){
+    ctx.fillStyle = `rgba(180,190,200,${0.35+armorLevel*0.2})`;
     ctx.beginPath();
     ctx.ellipse(-4, 0, 21, 15, 0, 0, Math.PI*2);
     ctx.fill();
@@ -1286,6 +1583,21 @@ function drawPlayer(){
   ctx.beginPath();
   ctx.ellipse(16, 0, 6, 6, 0, 0, Math.PI*2);
   ctx.fill();
+}
+
+function drawPlayer(){
+  const sx = W/2, sy = player.y - camera.y;
+  const bob = Math.sin(player.swimPhase)*3;
+
+  ctx.save();
+  ctx.translate(sx, sy+bob);   // vertical bob stays upright regardless of rotation
+  ctx.rotate(player.angle);    // nose points in the actual swimming direction
+
+  if(player.invuln>0 && Math.floor(player.invuln*14)%2===0){
+    ctx.globalAlpha = 0.4;
+  }
+
+  drawDiverFigure('#0f766e', player.swimPhase, player.armorLevel);
 
   // flashlight helmet lamp
   if(player.hasFlashlight){
@@ -1312,6 +1624,17 @@ function drawPlayer(){
     ctx.restore();
   }
 
+  ctx.restore();
+}
+
+function drawNpcDiver(n){
+  const sx = n.x - camera.x, sy = n.y - camera.y;
+  if(sx<-60||sx>W+60||sy<-60||sy>H+60) return;
+  const bob = Math.sin(n.swimPhase)*3;
+  ctx.save();
+  ctx.translate(sx, sy+bob);
+  ctx.rotate(n.angle);
+  drawDiverFigure(n.suitColor, n.swimPhase, 0);
   ctx.restore();
 }
 
@@ -1446,6 +1769,9 @@ function render(){
   drawDarknessOverlay(); // lights/dims the backdrop only — entities render fresh on top
 
   for(const f of fishPool) drawFish(f);
+  for(const c of clamPool) drawClam(c);
+  drawWhale();
+  for(const n of npcDivers) drawNpcDiver(n);
   for(const m of monsterPool) drawMonster(m);
   for(const s of squidPool) drawSquid(s);
   for(const e of eelPool) drawEel(e);
