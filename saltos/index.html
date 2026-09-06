@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-PT">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Leap Day</title>
+<title>Dia do Salto</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
 
@@ -214,28 +214,28 @@
 
   <div class="hud">
     <div>
-      <div class="day-badge">Climbing since Feb 29</div>
-      <div class="day-number" id="dayNumber">Day 1</div>
+      <div class="day-badge">A escalar desde 29 de Fev.</div>
+      <div class="day-number" id="dayNumber">Dia 1</div>
     </div>
-    <div class="best-chip" id="bestChip">Best · Day 1</div>
+    <div class="best-chip" id="bestChip">Melhor · Dia 1</div>
   </div>
 
-  <div class="toast" id="toast">Leap Day! +50</div>
+  <div class="toast" id="toast">Dia do Salto! +50</div>
 
   <div class="overlay" id="startOverlay">
     <div class="leap-icon">🐸</div>
-    <h1>Leap Day</h1>
-    <p class="sub">Bounce wall to wall and tap to leap onto the next date tile. Miss one, and the climb ends.</p>
-    <button class="btn" id="startBtn">Start climbing</button>
-    <div class="hint">Tap or press Space to leap</div>
+    <h1>Dia do Salto</h1>
+    <p class="sub">Salta de parede em parede e toca para saltar para o próximo bloco de data. Se falhares um, a escalada termina.</p>
+    <button class="btn" id="startBtn">Começar a escalar</button>
+    <div class="hint">Toque ou prima Espaço para saltar</div>
   </div>
 
   <div class="overlay" id="overOverlay" style="display:none;">
-    <h1 style="font-size:36px;">Fell through</h1>
-    <div class="result" id="finalDay">Day 1</div>
-    <div class="result-best" id="finalBest">New best!</div>
-    <button class="btn" id="retryBtn">Climb again</button>
-    <div class="hint">Tap or press Space to leap</div>
+    <h1 style="font-size:36px;">Caiu</h1>
+    <div class="result" id="finalDay">Dia 1</div>
+    <div class="result-best" id="finalBest">Novo recorde!</div>
+    <button class="btn" id="retryBtn">Escalar outra vez</button>
+    <div class="hint">Toque ou prima Espaço para saltar</div>
   </div>
 </div>
 
@@ -440,8 +440,8 @@
       }
     }
 
-    dayNumberEl.textContent = 'Day 1';
-    bestChipEl.textContent = 'Best · Day ' + best;
+    dayNumberEl.textContent = 'Dia 1';
+    bestChipEl.textContent = 'Melhor · Dia ' + best;
     startOverlay.style.display = 'none';
     overOverlay.style.display = 'none';
   }
@@ -469,16 +469,16 @@
   function gameOver(){
     running = false;
     const finalDay = dayFromClimbed(-scrollY);
-    finalDayEl.textContent = 'Day ' + finalDay;
+    finalDayEl.textContent = 'Dia ' + finalDay;
     if (finalDay > best) {
       best = finalDay;
-      finalBestEl.textContent = 'New best!';
+      finalBestEl.textContent = 'Novo recorde!';
       finalBestEl.style.display = 'block';
     } else {
-      finalBestEl.textContent = 'Best · Day ' + best;
+      finalBestEl.textContent = 'Melhor · Dia ' + best;
       finalBestEl.style.display = 'block';
     }
-    bestChipEl.textContent = 'Best · Day ' + best;
+    bestChipEl.textContent = 'Melhor · Dia ' + best;
     overOverlay.style.display = 'flex';
   }
 
@@ -595,7 +595,7 @@
 
           if (p.isLeap && !p.claimed) {
             p.claimed = true;
-            showToast('🎉 Leap Day! +1 bonus day');
+            showToast('🎉 Dia do Salto! +1 dia extra');
           }
 
           if (p.type === 'crumble') {

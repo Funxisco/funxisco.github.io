@@ -227,21 +227,21 @@
       <div id="titleBar">
         <div>
           <div id="title" class="pixel-font">EMBERWOOD</div>
-          <div id="subtitle">a wide world of quests</div>
+          <div id="subtitle">um mundo amplo de missões</div>
           <div id="statusBar" class="pixel-font">
             <span id="hearts">♥♥♥♥♥</span>
             <span id="swordIcon" style="display:none;">⚔</span>
           </div>
           <div id="levelPanel">
-            <div id="levelTitle" class="pixel-font">LEVEL 1 / 5: AWAKENING</div>
-            <div id="levelDesc">Find a sword hidden in the wild</div>
+            <div id="levelTitle" class="pixel-font">NÍVEL 1 / 5: DESPERTAR</div>
+            <div id="levelDesc">Encontra uma espada escondida na natureza</div>
           </div>
         </div>
-        <button id="regenBtn">⟳ NEW WORLD</button>
+        <button id="regenBtn">⟳ NOVO MUNDO</button>
       </div>
       <div id="locWrap">
-        <div id="locTag" class="pixel-font">MEADOW</div>
-        <div id="hint">WASD / Arrow keys to walk · Space to swing your sword</div>
+        <div id="locTag" class="pixel-font">PRADO</div>
+        <div id="hint">WASD / Setas para andar · Espaço para balançar a espada</div>
       </div>
       <div id="toast" class="pixel-font"></div>
       <div id="joystick">
@@ -280,14 +280,14 @@ const T = { GRASS:0, FOREST:1, WATER:2, MOUNTAIN:3, CAVE:4, BRIDGE:5, PATH:6, HO
 function isBlocking(id){ return id===T.FOREST || id===T.WATER || id===T.MOUNTAIN || id===T.HOUSE; }
 
 const locNames = {
-  [T.GRASS]: 'MEADOW',
-  [T.FOREST]: 'FOREST EDGE',
-  [T.WATER]: 'RIVERBANK',
-  [T.MOUNTAIN]: 'MOUNTAIN PASS',
-  [T.CAVE]: 'CAVE MOUTH',
-  [T.BRIDGE]: 'OLD BRIDGE',
-  [T.PATH]: 'DIRT PATH',
-  [T.HOUSE]: 'VILLAGE',
+  [T.GRASS]: 'PRADO',
+  [T.FOREST]: 'MARGEM DA FLORESTA',
+  [T.WATER]: 'MARGEM DO RIO',
+  [T.MOUNTAIN]: 'PASSO DA MONTANHA',
+  [T.CAVE]: 'ENTRADA DA CAVERNA',
+  [T.BRIDGE]: 'PONTE VELHA',
+  [T.PATH]: 'CAMINHO DE TERRA',
+  [T.HOUSE]: 'ALDEIA',
 };
 const locColors = {
   [T.GRASS]: '#7ec27a', [T.FOREST]:'#4f9a5c', [T.WATER]:'#6fb3e0',
@@ -514,7 +514,7 @@ function generateWorld(seed){
   }
 
   const villageRng = mulberry32((seed ^ 0x51ed270b) >>> 0);
-  const villageNames = ['WILLOWMERE', 'STONEHOLLOW'];
+  const villageNames = ['SALGUEIRAL', 'BOSQUE PEDRA'];
   const hutOffsets = [[-2,-1],[2,-1],[0,2]];
   const villages = [];
   const villageAvoid = [{x:caveX, y:caveY}, {x:spawnX, y:spawnY}];
@@ -541,7 +541,7 @@ function generateWorld(seed){
       if(t===T.HOUSE || t===T.WATER) continue;
       grid[idx(x,y)] = T.PATH;
     }
-    villages.push({ x: center.x, y: center.y, name: villageNames[vi] || ('VILLAGE '+(vi+1)), visited:false });
+    villages.push({ x: center.x, y: center.y, name: villageNames[vi] || ('ALDEIA '+(vi+1)), visited:false });
   }
   // guarantee each village is reachable from spawn, same safety net as the cave
   for(const v of villages){
@@ -896,11 +896,11 @@ function spawnWorldEntities(w){
 // LEVELS / MISSIONS
 // ============================================================
 const LEVELS = [
-  { title:'AWAKENING', desc: s => 'Find a sword hidden in the wild', done: s => s.swordsFound>=1 },
-  { title:'INTO THE WILD', desc: s => `Collect treasure across the land (${Math.min(s.treasuresFound,3)}/3)`, done: s => s.treasuresFound>=3 },
-  { title:'MONSTER TROUBLE', desc: s => `Defeat monsters threatening the land (${Math.min(s.monstersDefeated,3)}/3)`, done: s => s.monstersDefeated>=3 },
-  { title:'NEIGHBORLY VISITS', desc: s => `Visit both villages (${s.villagesVisited}/2)`, done: s => s.villagesVisited>=2 },
-  { title:'HEART OF THE MOUNTAIN', desc: s => 'Find the crystal hidden in the cave', done: s => s.crystalFound },
+  { title:'DESPERTAR', desc: s => 'Encontra uma espada escondida na natureza', done: s => s.swordsFound>=1 },
+  { title:'NO MEIO DA NATUREZA', desc: s => `Recolhe tesouros por toda a terra (${Math.min(s.treasuresFound,3)}/3)`, done: s => s.treasuresFound>=3 },
+  { title:'PROBLEMAS COM MONSTROS', desc: s => `Derrota os monstros que ameaçam a terra (${Math.min(s.monstersDefeated,3)}/3)`, done: s => s.monstersDefeated>=3 },
+  { title:'VISITAS DE VIZINHANÇA', desc: s => `Visita as duas aldeias (${s.villagesVisited}/2)`, done: s => s.villagesVisited>=2 },
+  { title:'CORAÇÃO DA MONTANHA', desc: s => 'Encontra o cristal escondido na caverna', done: s => s.crystalFound },
 ];
 let currentLevel = 0;
 let adventureComplete = false;
@@ -912,10 +912,10 @@ function checkLevelProgress(){
     currentLevel++;
     advanced = true;
     if(currentLevel < LEVELS.length){
-      showToast('LEVEL ' + (currentLevel+1) + ': ' + LEVELS[currentLevel].title);
+      showToast('NÍVEL ' + (currentLevel+1) + ': ' + LEVELS[currentLevel].title);
     } else {
       adventureComplete = true;
-      showToast('🏆 ADVENTURE COMPLETE 🏆');
+      showToast('🏆 AVENTURA CONCLUÍDA 🏆');
     }
   }
   if(advanced) updateLevelHUD();
@@ -926,12 +926,12 @@ function updateLevelHUD(){
   const descEl = document.getElementById('levelDesc');
   if(!titleEl || !descEl) return;
   if(adventureComplete){
-    titleEl.textContent = 'ADVENTURE COMPLETE';
-    descEl.textContent = 'You have mastered Emberwood!';
+    titleEl.textContent = 'AVENTURA CONCLUÍDA';
+    descEl.textContent = 'Dominas o Emberwood!';
     return;
   }
   const lvl = LEVELS[currentLevel];
-  titleEl.textContent = 'LEVEL ' + (currentLevel+1) + ' / ' + LEVELS.length + ': ' + lvl.title;
+  titleEl.textContent = 'NÍVEL ' + (currentLevel+1) + ' / ' + LEVELS.length + ': ' + lvl.title;
   descEl.textContent = lvl.desc(stats);
 }
 
@@ -996,7 +996,7 @@ const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0
 if(isTouchDevice){
   document.body.classList.add('touch');
   const hintEl = document.getElementById('hint');
-  if(hintEl) hintEl.textContent = 'Drag the joystick to walk · tap ⚔ to attack';
+  if(hintEl) hintEl.textContent = 'Arrasta o joystick para andar · toca em ⚔ para atacar';
 }
 
 // --- attack button (touch) ---
@@ -1288,7 +1288,7 @@ function updateMonsters(dt){
 // ============================================================
 function performAttack(){
   if(inCave || transition.active) return;
-  if(!player.hasSword){ showToast('You need to find a sword first'); return; }
+  if(!player.hasSword){ showToast('Precisas de encontrar uma espada primeiro'); return; }
   if(player.attackCooldown > 0) return;
   player.attackCooldown = 0.42;
   player.attackT = 0.18;
@@ -1308,7 +1308,7 @@ function performAttack(){
       if(m.hp <= 0){
         m.alive = false;
         stats.monstersDefeated++;
-        showToast('Monster defeated! (' + stats.monstersDefeated + '/3)');
+        showToast('Monstro derrotado! (' + stats.monstersDefeated + '/3)');
         checkLevelProgress();
       }
     }
@@ -1326,7 +1326,7 @@ function updateItemPickups(){
     if(Math.hypot(player.x-t.x, player.y-t.y) < pickupRadius){
       t.collected = true;
       stats.treasuresFound++;
-      showToast('✦ Found treasure! (' + stats.treasuresFound + '/8)');
+      showToast('✦ Tesouro encontrado! (' + stats.treasuresFound + '/8)');
       checkLevelProgress();
     }
   }
@@ -1336,7 +1336,7 @@ function updateItemPickups(){
       s.collected = true;
       stats.swordsFound++;
       player.hasSword = true;
-      showToast('⚔ You picked up a sword!');
+      showToast('⚔ Apanhaste uma espada!');
       checkLevelProgress();
     }
   }
@@ -1350,7 +1350,7 @@ function updateVillageVisits(){
     if(Math.hypot(dx,dy) < 4){
       v.visited = true;
       stats.villagesVisited++;
-      showToast('🏘 Welcome to ' + v.name + '!');
+      showToast('🏘 Bem-vindo a ' + v.name + '!');
       checkLevelProgress();
     }
   }
@@ -1416,7 +1416,7 @@ function update(dt){
   if(!inCave){
     if(inBounds(tx,ty,world.W,world.H)){
       const t = world.grid[world.idx(tx,ty)];
-      setLocation(locNames[t] || 'MEADOW', locColors[t] || '#7ec27a');
+      setLocation(locNames[t] || 'PRADO', locColors[t] || '#7ec27a');
       if(t===T.CAVE && cooldown<=0){
         startTransition(()=>{ inCave = true; placePlayerCave(); cooldown=1.0; });
       }
@@ -1427,19 +1427,19 @@ function update(dt){
     if(inBounds(tx,ty,CAVE_W,CAVE_H)){
       const ct = caveTileAt(tx,ty);
       if(ct===CT.EXIT){
-        setLocation('CAVE EXIT', '#ffd76b');
+        setLocation('SAÍDA DA CAVERNA', '#ffd76b');
         if(cooldown<=0){
           startTransition(()=>{ inCave=false; placePlayerAtCaveMouth(); cooldown=1.0; });
         }
       } else if(ct===CT.CRYSTAL){
-        setLocation('CRYSTAL HOLLOW', '#c9a6f0');
+        setLocation('CAVERNA DO CRISTAL', '#c9a6f0');
         if(!stats.crystalFound){
           stats.crystalFound = true;
-          showToast('✦ FOUND A SUNSTONE CRYSTAL ✦');
+          showToast('✦ ENCONTRASTE UM CRISTAL SOLAR ✦');
           checkLevelProgress();
         }
       } else {
-        setLocation('CAVE OF EMBERS', '#c9a6f0');
+        setLocation('CAVERNA DE BRASA', '#c9a6f0');
       }
     }
   }

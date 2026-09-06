@@ -184,10 +184,10 @@
     </div>
     <div class="cluster">
       <div class="pill">⭐ <b id="stars">0</b></div>
-      <div class="pill">Turn <b id="turnnum">1</b></div>
+      <div class="pill">Rodada <b id="turnnum">1</b></div>
       <button class="iconbtn" id="mutebtn">🔊</button>
-      <button id="techbtn">🧪 Tech</button>
-      <button id="endturn">End Turn</button>
+      <button id="techbtn">🧪 Tecn.</button>
+      <button id="endturn">Fim da Rodada</button>
     </div>
   </div>
 
@@ -206,17 +206,17 @@
 
   <div id="help">?</div>
   <div id="helpcard">
-    <b>How to play</b><br>
-    Tap a <b>unit</b> to select it, then tap a highlighted tile to move, or an enemy to attack.<br><br>
-    Tap your <b>city</b> to train units. Tap <b>🧪 Tech</b> to research new units &amp; bonuses.<br><br>
-    <b>Hills</b> give defenders a combat bonus. Villages (🛖) grant bonus stars when reached.<br><br>
-    Capture the enemy capital (👑) to win.
+    <b>Como jogar</b><br>
+    Toque numa <b>unidade</b> para a selecionar, depois toque num quadrado destacado para a mover, ou num inimigo para atacar.<br><br>
+    Toque na tua <b>cidade</b> para treinar unidades. Toque em <b>🧪 Tecn.</b> para investigar novas unidades e bônus.<br><br>
+    As <b>colinas</b> dão um bónus de combate aos defensores. As aldeias (🛖) concedem estrelas extra ao serem alcançadas.<br><br>
+    Capture a capital inimiga (👑) para vencer.
   </div>
 
   <div id="gameover">
-    <h1 id="goTitle">Victory</h1>
-    <p id="goDesc">You have conquered the enemy capital.</p>
-    <button class="btn primary" onclick="location.reload()">Play Again</button>
+    <h1 id="goTitle">Vitória</h1>
+    <p id="goDesc">Conquistaste a capital inimiga.</p>
+    <button class="btn primary" onclick="location.reload()">Jogar de Novo</button>
   </div>
 </div>
 
@@ -230,31 +230,31 @@ const TILE_W = 64, TILE_H = 34;
 const TILE_TOP = 22;
 
 const TERRAIN = {
-  WATER:   {name:'Water',   color:'#3d6e8c', walk:false},
-  GRASS:   {name:'Grass',   color:'#5a9457', walk:true},
-  FOREST:  {name:'Forest',  color:'#3c6b3f', walk:true},
-  HILLS:   {name:'Hills',   color:'#a08b5c', walk:true, defBonus:1.5},
-  MOUNTAIN:{name:'Mountain',color:'#8c8270', walk:false},
-  RESOURCE:{name:'Fertile', color:'#78a84a', walk:true},
+  WATER:   {name:'Água',    color:'#3d6e8c', walk:false},
+  GRASS:   {name:'Relva',   color:'#5a9457', walk:true},
+  FOREST:  {name:'Floresta',color:'#3c6b3f', walk:true},
+  HILLS:   {name:'Colinas', color:'#a08b5c', walk:true, defBonus:1.5},
+  MOUNTAIN:{name:'Montanha',color:'#8c8270', walk:false},
+  RESOURCE:{name:'Fértil',  color:'#78a84a', walk:true},
 };
 
 const UNIT_TYPES = {
-  warrior:   {name:'Warrior',   cost:2, atk:2, def:2, hp:10, move:1, range:1, glyph:'⚔️', tech:null},
-  rider:     {name:'Rider',     cost:3, atk:2, def:1, hp:10, move:2, range:1, glyph:'🐎', tech:'riding'},
-  archer:    {name:'Archer',    cost:3, atk:2, def:1, hp:10, move:1, range:2, glyph:'🏹', tech:'archery'},
-  defender:  {name:'Defender',  cost:4, atk:1, def:4, hp:14, move:1, range:1, glyph:'🛡️', tech:'strategy'},
-  swordsman: {name:'Swordsman', cost:5, atk:3, def:2, hp:12, move:1, range:1, glyph:'🗡️', tech:'smithery'},
-  catapult:  {name:'Catapult',  cost:6, atk:4, def:1, hp:8,  move:1, range:3, glyph:'💣', tech:'mechanics', siege:true},
+  warrior:   {name:'Guerreiro',   cost:2, atk:2, def:2, hp:10, move:1, range:1, glyph:'⚔️', tech:null},
+  rider:     {name:'Cavaleiro',   cost:3, atk:2, def:1, hp:10, move:2, range:1, glyph:'🐎', tech:'riding'},
+  archer:    {name:'Arqueiro',    cost:3, atk:2, def:1, hp:10, move:1, range:2, glyph:'🏹', tech:'archery'},
+  defender:  {name:'Defensor',    cost:4, atk:1, def:4, hp:14, move:1, range:1, glyph:'🛡️', tech:'strategy'},
+  swordsman: {name:'Espadachim',  cost:5, atk:3, def:2, hp:12, move:1, range:1, glyph:'🗡️', tech:'smithery'},
+  catapult:  {name:'Catapulta',   cost:6, atk:4, def:1, hp:8,  move:1, range:3, glyph:'💣', tech:'mechanics', siege:true},
 };
 
 const TECHS = {
-  riding:        {name:'Riding',        cost:5,  desc:'Unlocks the Rider — fast cavalry with 2 movement.', requires:[]},
-  archery:       {name:'Archery',       cost:5,  desc:'Unlocks the Archer — strikes from 2 tiles away.', requires:[]},
-  farming:       {name:'Farming',       cost:4,  desc:'+1 star each turn for every Fertile tile you own.', requires:[]},
-  strategy:      {name:'Strategy',      cost:8,  desc:'Unlocks the Defender — a stalwart shield-bearer.', requires:['riding']},
-  smithery:      {name:'Smithery',      cost:8,  desc:'Unlocks the Swordsman — a heavier melee fighter.', requires:['archery']},
-  fortification: {name:'Fortification', cost:10, desc:'All your cities gain +10 max HP, now and future.', requires:['strategy']},
-  mechanics:     {name:'Mechanics',     cost:12, desc:'Unlocks the Catapult — long range siege engine.', requires:['smithery']},
+  riding:        {name:'Cavalaria',      cost:5,  desc:'Desbloqueia o Cavaleiro — cavalaria rápida com 2 de movimento.', requires:[]},
+  archery:       {name:'Arquearia',      cost:5,  desc:'Desbloqueia o Arqueiro — ataca a 2 quadrados de distância.', requires:[]},
+  farming:       {name:'Agricultura',    cost:4,  desc:'+1 estrela por rodada para cada quadrado Fértil que possuis.', requires:[]},
+  strategy:      {name:'Estratégia',     cost:8,  desc:'Desbloqueia o Defensor — um escudo imbatível.', requires:['riding']},
+  smithery:      {name:'Ferraria',       cost:8,  desc:'Desbloqueia o Espadachim — um combatente corpo a corpo mais pesado.', requires:['archery']},
+  fortification: {name:'Fortificação',   cost:10, desc:'Todas as tuas cidades ganham +10 de HP máximo, agora e no futuro.', requires:['strategy']},
+  mechanics:     {name:'Mecânica',       cost:12, desc:'Desbloqueia a Catapulta — arma de cerco de longo alcance.', requires:['smithery']},
 };
 const AI_TECH_ORDER = ['riding','archery','farming','strategy','smithery','fortification','mechanics'];
 
@@ -454,7 +454,7 @@ function cityMaxHp(owner){ return hasTech(owner,'fortification') ? 25 : 15; }
 function foundCity(x,y,owner,capital){
   forceWalkable(x,y);
   const maxHp = cityMaxHp(owner);
-  const c = {id:nextId(), x,y,owner,name: owner===PLAYER?'Your City':'Rival City', hp:maxHp, maxHp, capital: !!capital, level:1};
+  const c = {id:nextId(), x,y,owner,name: owner===PLAYER?'A tua Cidade':'Cidade Inimiga', hp:maxHp, maxHp, capital: !!capital, level:1};
   cities.push(c);
   map[y][x].cityId = c.id;
   map[y][x].owner = owner;
@@ -768,7 +768,7 @@ function doMove(u,x,y){
     t.hasHut = false;
     stars[u.owner] += 5;
     SFX.hut();
-    showToast((u.owner===PLAYER?'You':'Rival')+' found a village! +5 ⭐');
+    showToast((u.owner===PLAYER?'Encontraste':'O rival encontrou')+' uma aldeia! +5 ⭐');
     updateHUD();
   }
   selected = {kind:'unit', id:u.id};
@@ -796,7 +796,7 @@ function doAttack(u, x, y){
     const mult = info.siege ? 1.5 : 1;
     targetC.hp -= Math.round(info.atk*3*mult);
     SFX.hit();
-    showToast('City attacked!');
+    showToast('Cidade atacada!');
     if(targetC.hp<=0){ captureCity(targetC, u.owner); }
   }
   u.attacked = true; u.moved = true;
@@ -813,11 +813,11 @@ function resolveCombat(att, def){
   const dmgToDef = Math.max(1, Math.round(ai.atk*3 * (ai.atk/(ai.atk+defStat)) ));
   def.hp -= dmgToDef;
   SFX.hit();
-  showToast(`${ai.name} hits ${di.name} for ${dmgToDef}`);
+  showToast(`${ai.name} ataca ${di.name} por ${dmgToDef}`);
   if(def.hp<=0){
     units = units.filter(x=>x.id!==def.id);
     SFX.death();
-    showToast(`${di.name} defeated!`);
+    showToast(`${di.name} derrotado!`);
   } else if(dist(att.x,att.y,def.x,def.y)<=1){
     const attStat = defenseValue(att);
     const dmgToAtt = Math.max(1, Math.round(di.atk*2 * (attStat/(attStat+di.atk)) ));
@@ -825,13 +825,13 @@ function resolveCombat(att, def){
     if(att.hp<=0){
       units = units.filter(x=>x.id!==att.id);
       SFX.death();
-      showToast(`${ai.name} was destroyed in the counterattack!`);
+      showToast(`${ai.name} foi destruído no contra-ataque!`);
     }
   }
 }
 
 function captureCity(c, byOwner){
-  showToast((byOwner===PLAYER?'You':'Rival') + ' captured a city!');
+  showToast((byOwner===PLAYER?'Conquistaste':'O rival conquistou') + ' uma cidade!');
   SFX.capture();
   c.owner = byOwner;
   c.maxHp = cityMaxHp(byOwner);
@@ -852,11 +852,11 @@ function openPanel(){ panel.classList.add('show'); }
 function openUnitPanel(u){
   const info = UNIT_TYPES[u.type];
   panelMode = 'tile';
-  panelTitle.textContent = `${info.glyph} ${info.name} — ${u.owner===PLAYER?'Your unit':'Rival unit'}`;
-  panelDesc.textContent = `HP ${u.hp}/${info.hp}  ·  ATK ${info.atk}  ·  DEF ${info.def}  ·  Move ${info.move}  ·  Range ${info.range}`;
+  panelTitle.textContent = `${info.glyph} ${info.name} — ${u.owner===PLAYER?'A tua unidade':'Unidade inimiga'}`;
+  panelDesc.textContent = `HP ${u.hp}/${info.hp}  ·  ATA ${info.atk}  ·  DEF ${info.def}  ·  Movimento ${info.move}  ·  Alcance ${info.range}`;
   panelActions.innerHTML='';
   if(u.owner===PLAYER && currentTurnOwner===PLAYER){
-    const doneBtn = mkBtn('End move', ()=>{ u.moved=true; u.attacked=true; reachable=[];attackable=[]; closePanel(); selected=null; draw(); });
+    const doneBtn = mkBtn('Terminar movimento', ()=>{ u.moved=true; u.attacked=true; reachable=[];attackable=[]; closePanel(); selected=null; draw(); });
     panelActions.appendChild(doneBtn);
   }
   openPanel();
@@ -865,8 +865,8 @@ function openUnitPanel(u){
 function openCityPanel(c){
   const isMine = c.owner===PLAYER && currentTurnOwner===PLAYER;
   panelMode = 'tile';
-  panelTitle.textContent = (c.capital?'👑 ':'🏙 ') + (c.owner===PLAYER?'Your City':'Rival City');
-  panelDesc.textContent = `HP ${c.hp}/${c.maxHp}  ·  Income +2⭐/turn` + (isMine?'  ·  Train a unit:':'');
+  panelTitle.textContent = (c.capital?'👑 ':'🏙 ') + (c.owner===PLAYER?'A tua Cidade':'Cidade inimiga');
+  panelDesc.textContent = `HP ${c.hp}/${c.maxHp}  ·  Rendimento +2⭐/rodada` + (isMine?'  ·  Treinar unidade:':'');
   panelActions.innerHTML='';
   if(isMine){
     Object.entries(UNIT_TYPES).forEach(([key,info])=>{
@@ -876,8 +876,8 @@ function openCityPanel(c){
       const b = mkBtn(`${info.glyph} ${info.name}`, ()=>trainUnit(c,key));
       b.disabled = !unlocked || !canAfford || !spotFree;
       const small = document.createElement('small');
-      if(!unlocked) small.textContent = `needs ${TECHS[info.tech].name}`;
-      else if(!spotFree) small.textContent = 'tile occupied';
+      if(!unlocked) small.textContent = `precisa de ${TECHS[info.tech].name}`;
+      else if(!spotFree) small.textContent = 'quadrado ocupado';
       else small.textContent = `${info.cost}⭐`;
       b.appendChild(small);
       panelActions.appendChild(b);
@@ -889,8 +889,8 @@ function openCityPanel(c){
 function openTechPanel(){
   panelMode = 'tech';
   selected = null; reachable=[]; attackable=[];
-  panelTitle.textContent = '🧪 Research';
-  panelDesc.textContent = `You have ${stars.player} ⭐. Unlock new units and bonuses.`;
+  panelTitle.textContent = '🧪 Investigação';
+  panelDesc.textContent = `Tens ${stars.player} ⭐. Desbloqueia novas unidades e bônus.`;
   panelActions.innerHTML='';
   const wrap = document.createElement('div');
   wrap.style.width='100%';
@@ -904,10 +904,10 @@ function openTechPanel(){
     name.textContent = (owned?'✅ ':'🔒 ') + t.name + (owned?'':`  ·  ${t.cost}⭐`);
     const desc = document.createElement('div');
     desc.className='desc';
-    desc.textContent = t.desc + (missingReq.length? `  (requires ${missingReq.map(r=>TECHS[r].name).join(', ')})`:'');
+    desc.textContent = t.desc + (missingReq.length? `  (precisa de ${missingReq.map(r=>TECHS[r].name).join(', ')})`:'');
     row.appendChild(name); row.appendChild(desc);
     if(!owned){
-      const b = mkBtn('Research', ()=>{ if(researchTech(PLAYER,id)){ updateHUD(); openTechPanel(); draw(); } else { SFX.denied(); } });
+      const b = mkBtn('Investigar', ()=>{ if(researchTech(PLAYER,id)){ updateHUD(); openTechPanel(); draw(); } else { SFX.denied(); } });
       b.className='btn primary wide';
       b.disabled = missingReq.length>0 || stars.player<t.cost;
       row.appendChild(b);
@@ -936,7 +936,7 @@ function trainUnit(c, type){
   const info = UNIT_TYPES[type];
   if(info.tech && !hasTech(PLAYER,info.tech)) return;
   if(stars.player < info.cost) return;
-  if(unitAt(c.x,c.y)) { showToast('Tile occupied — move your unit first'); return; }
+  if(unitAt(c.x,c.y)) { showToast('Quadrado ocupado — move primeiro a tua unidade'); return; }
   stars.player -= info.cost;
   const u = spawnUnit(c.x,c.y,PLAYER,type);
   u.moved = true; u.attacked = true;
@@ -957,7 +957,7 @@ function researchTech(owner, id){
     cities.filter(c=>c.owner===owner).forEach(c=>{ c.maxHp+=10; c.hp+=10; });
   }
   if(owner===PLAYER) SFX.tech();
-  showToast((owner===PLAYER?'You researched ':'Rival researched ') + t.name + '!');
+  showToast((owner===PLAYER?'Investigaste ':'O rival investigou ') + t.name + '!');
   return true;
 }
 
@@ -986,7 +986,7 @@ function endPlayerTurn(){
   selected=null; reachable=[]; attackable=[]; closePanel();
   currentTurnOwner = ENEMY;
   SFX.endturn();
-  showToast('Rival is on the move…');
+  showToast('O rival está em movimento…');
   draw();
   setTimeout(runEnemyTurn, 500);
 }
@@ -1033,7 +1033,7 @@ function runEnemyTurn(){
   currentTurnOwner = PLAYER;
   units.forEach(u=>{ if(u.owner===PLAYER){ u.moved=false; u.attacked=false; } });
   updateHUD();
-  showToast('Your turn, Turn ' + turn);
+  showToast('A tua vez, Rodada ' + turn);
   draw();
   checkWinLose();
 }
@@ -1103,10 +1103,10 @@ function endGame(won){
   gameOver = true;
   if(won) SFX.victory(); else SFX.defeat();
   document.getElementById('gameover').classList.add('show');
-  document.getElementById('goTitle').textContent = won ? 'Victory!' : 'Defeated';
+  document.getElementById('goTitle').textContent = won ? 'Vitória!' : 'Derrotado';
   document.getElementById('goDesc').textContent = won ?
-    'You captured the rival capital and united the isle.' :
-    'The rival has taken your capital. Your realm has fallen.';
+    'Conquistaste a capital rival e unificaste a ilha.' :
+    'O rival tomou a tua capital. O teu reino caiu.';
 }
 
 /* ============================== HELP TOGGLE ============================== */
