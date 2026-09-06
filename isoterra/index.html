@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Isoterra — a tiny isometric empire game</title>
+<style>
+  :root{
+    --ink:#1c2b24;
+    --parchment:#eee3c8;
+    --moss:#3f6b4f;
+    --moss-dk:#294936;
+    --clay:#b5562f;
+    --clay-dk:#7c3a1f;
+    --gold:#d8ad4b;
+    --water:#3d6e8c;
+    --panel:#26332c;
+    --panel-2:#31423a;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    background:var(--ink);
+    font-family: 'Georgia', 'Iowan Old Style', serif;
+    color:var(--parchment);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  #app{ position:relative; width:100vw; height:100vh; }
+  canvas{ display:block; background: radial-gradient(circle at 50% 20%, #2c4038, #182420 75%); }
+
+  #topbar{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 10px 12px;
+    background: linear-gradient(to bottom, rgba(18,26,21,.92), rgba(18,26,21,0));
+    pointer-events:none;
+    z-index: 5;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #topbar .cluster{ display:flex; gap:8px; align-items:center; pointer-events:auto; flex-wrap:wrap; }
+  .pill{
+    background: var(--panel);
+    border: 1px solid #4a5c4f;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 13px;
+    display:flex; align-items:center; gap:6px;
+    white-space:nowrap;
+  }
+  .pill b{ color: var(--gold); font-size:14px; }
+  #title{
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    color: var(--gold);
+    font-style: italic;
+  }
+  .iconbtn{
+    pointer-events:auto;
+    background: var(--panel);
+    border: 1px solid #4a5c4f;
+    color: var(--parchment);
+    width:36px; height:36px;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #endturn{
+    pointer-events:auto;
+    background: linear-gradient(to bottom, var(--clay), var(--clay-dk));
+    border: 1px solid #5c2a15;
+    color: #fff3e6;
+    padding: 9px 16px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight:bold;
+    cursor:pointer;
+    box-shadow: 0 3px 0 #4a230f, 0 4px 8px rgba(0,0,0,.4);
+    white-space:nowrap;
+  }
+  #endturn:active{ transform: translateY(2px); box-shadow: 0 1px 0 #4a230f; }
+  #techbtn{
+    pointer-events:auto;
+    background: linear-gradient(to bottom, var(--moss), var(--moss-dk));
+    border: 1px solid #1f3a2a;
+    color: #eef7ee;
+    padding: 9px 14px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight:bold;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+
+  #panel{
+    position:absolute; left:10px; right:10px; bottom:10px;
+    background: var(--panel);
+    border: 1px solid #4a5c4f;
+    border-radius: 14px;
+    padding: 12px 14px;
+    min-height: 64px;
+    max-height: 62vh;
+    overflow-y: auto;
+    z-index: 5;
+    display:none;
+    box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  }
+  #panel.show{ display:block; }
+  #panel .row1{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  #panel h3{ margin:0 0 2px 0; font-size:16px; color: var(--gold); }
+  #panel p{ margin:0; font-size:12.5px; color:#cfe0d2; line-height:1.4; }
+  #panel .actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .btn{
+    background: var(--panel-2);
+    border: 1px solid #5a6e5f;
+    color: var(--parchment);
+    padding: 8px 12px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor:pointer;
+    text-align:left;
+  }
+  .btn:disabled{ opacity:.4; }
+  .btn.primary{ background: linear-gradient(to bottom, var(--moss), var(--moss-dk)); border-color:#1f3a2a; }
+  .btn small{ display:block; color: var(--gold); font-size:11px; margin-top:2px; }
+  .btn.wide{ width:100%; }
+  #closepanel{
+    background:none; border:none; color:#9fb3a3; font-size: 20px; cursor:pointer; line-height:1;
+    padding:2px 6px;
+  }
+  .techrow{ margin-bottom:8px; }
+  .techrow .name{ font-size:14px; color:var(--gold); font-weight:bold; }
+  .techrow .desc{ font-size:11.5px; color:#cfe0d2; margin: 2px 0 6px 0; }
+
+  #toast{
+    position:absolute; top: 64px; left:50%; transform:translateX(-50%);
+    background: rgba(20,28,23,.95); border:1px solid #4a5c4f;
+    padding: 8px 16px; border-radius: 999px; font-size: 13px;
+    color: var(--gold); z-index: 6; pointer-events:none;
+    opacity:0; transition: opacity .35s ease, transform .35s ease;
+    white-space: nowrap;
+    max-width: 90vw;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  #toast.show{ opacity:1; }
+
+  #gameover{
+    position:absolute; inset:0; background: rgba(10,14,11,.88);
+    display:none; align-items:center; justify-content:center; z-index:20;
+    flex-direction: column; text-align:center; padding: 20px;
+  }
+  #gameover.show{ display:flex; }
+  #gameover h1{ color: var(--gold); font-size: 30px; margin: 0 0 8px 0; font-style:italic; }
+  #gameover p{ color:#cfe0d2; max-width:320px; margin:0 0 18px 0; }
+
+  #help{
+    position:absolute; bottom: 14px; right: 14px; z-index: 5;
+    width:34px; height:34px; border-radius:50%;
+    background: var(--panel); border:1px solid #4a5c4f; color:var(--gold);
+    display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer;
+  }
+  #helpcard{
+    position:absolute; bottom: 56px; right: 14px; z-index: 6;
+    background: var(--panel); border:1px solid #4a5c4f; border-radius: 12px;
+    padding: 10px 12px; font-size:12px; color:#cfe0d2; width: 220px; display:none;
+    line-height:1.5;
+  }
+  #helpcard.show{ display:block; }
+  #helpcard b{ color: var(--gold); }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <div id="topbar">
+    <div class="cluster">
+      <span id="title">Isoterra</span>
+    </div>
+    <div class="cluster">
+      <div class="pill">⭐ <b id="stars">0</b></div>
+      <div class="pill">Turn <b id="turnnum">1</b></div>
+      <button class="iconbtn" id="mutebtn">🔊</button>
+      <button id="techbtn">🧪 Tech</button>
+      <button id="endturn">End Turn</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="panel">
+    <div class="row1">
+      <div>
+        <h3 id="panelTitle">—</h3>
+        <p id="panelDesc"></p>
+      </div>
+      <button id="closepanel">✕</button>
+    </div>
+    <div class="actions" id="panelActions"></div>
+  </div>
+
+  <div id="help">?</div>
+  <div id="helpcard">
+    <b>How to play</b><br>
+    Tap a <b>unit</b> to select it, then tap a highlighted tile to move, or an enemy to attack.<br><br>
+    Tap your <b>city</b> to train units. Tap <b>🧪 Tech</b> to research new units &amp; bonuses.<br><br>
+    <b>Hills</b> give defenders a combat bonus. Villages (🛖) grant bonus stars when reached.<br><br>
+    Capture the enemy capital (👑) to win.
+  </div>
+
+  <div id="gameover">
+    <h1 id="goTitle">Victory</h1>
+    <p id="goDesc">You have conquered the enemy capital.</p>
+    <button class="btn primary" onclick="location.reload()">Play Again</button>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================== CONFIG ============================== */
+const COLS = 13, ROWS = 13;
+const TILE_W = 64, TILE_H = 34;
+const TILE_TOP = 22;
+
+const TERRAIN = {
+  WATER:   {name:'Water',   color:'#3d6e8c', walk:false},
+  GRASS:   {name:'Grass',   color:'#5a9457', walk:true},
+  FOREST:  {name:'Forest',  color:'#3c6b3f', walk:true},
+  HILLS:   {name:'Hills',   color:'#a08b5c', walk:true, defBonus:1.5},
+  MOUNTAIN:{name:'Mountain',color:'#8c8270', walk:false},
+  RESOURCE:{name:'Fertile', color:'#78a84a', walk:true},
+};
+
+const UNIT_TYPES = {
+  warrior:   {name:'Warrior',   cost:2, atk:2, def:2, hp:10, move:1, range:1, glyph:'⚔️', tech:null},
+  rider:     {name:'Rider',     cost:3, atk:2, def:1, hp:10, move:2, range:1, glyph:'🐎', tech:'riding'},
+  archer:    {name:'Archer',    cost:3, atk:2, def:1, hp:10, move:1, range:2, glyph:'🏹', tech:'archery'},
+  defender:  {name:'Defender',  cost:4, atk:1, def:4, hp:14, move:1, range:1, glyph:'🛡️', tech:'strategy'},
+  swordsman: {name:'Swordsman', cost:5, atk:3, def:2, hp:12, move:1, range:1, glyph:'🗡️', tech:'smithery'},
+  catapult:  {name:'Catapult',  cost:6, atk:4, def:1, hp:8,  move:1, range:3, glyph:'💣', tech:'mechanics', siege:true},
+};
+
+const TECHS = {
+  riding:        {name:'Riding',        cost:5,  desc:'Unlocks the Rider — fast cavalry with 2 movement.', requires:[]},
+  archery:       {name:'Archery',       cost:5,  desc:'Unlocks the Archer — strikes from 2 tiles away.', requires:[]},
+  farming:       {name:'Farming',       cost:4,  desc:'+1 star each turn for every Fertile tile you own.', requires:[]},
+  strategy:      {name:'Strategy',      cost:8,  desc:'Unlocks the Defender — a stalwart shield-bearer.', requires:['riding']},
+  smithery:      {name:'Smithery',      cost:8,  desc:'Unlocks the Swordsman — a heavier melee fighter.', requires:['archery']},
+  fortification: {name:'Fortification', cost:10, desc:'All your cities gain +10 max HP, now and future.', requires:['strategy']},
+  mechanics:     {name:'Mechanics',     cost:12, desc:'Unlocks the Catapult — long range siege engine.', requires:['smithery']},
+};
+const AI_TECH_ORDER = ['riding','archery','farming','strategy','smithery','fortification','mechanics'];
+
+const PLAYER = 'player', ENEMY = 'enemy';
+const COLORS = { player: '#3d7fd6', enemy: '#c24a3a' };
+
+/* ============================== STATE ============================== */
+let map = [];
+let units = [];
+let cities = [];
+let selected = null;
+let reachable = [];
+let attackable = [];
+let stars = { player: 6, enemy: 6 };
+let techs = { player: new Set(), enemy: new Set() };
+let turn = 1;
+let currentTurnOwner = PLAYER;
+let gameOver = false;
+let uidCounter = 1;
+let panelMode = null; // 'tile' | 'tech'
+
+let cam = { x: 0, y: 0, scale: 1 };
+let dragging = false, dragStart = null, camStart = null, dragMoved = false;
+
+/* ============================== SOUND ============================== */
+let audioCtx = null;
+let soundOn = true;
+function ensureAudio(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ audioCtx=null; }
+  }
+  if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();
+}
+function tone(freq, dur, type, vol, delay, sweepTo){
+  if(!soundOn) return;
+  ensureAudio();
+  if(!audioCtx) return;
+  const t0 = audioCtx.currentTime + (delay||0);
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, t0);
+  if(sweepTo) osc.frequency.exponentialRampToValueAtTime(Math.max(20,sweepTo), t0+dur);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(vol||0.15, t0+0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0+dur+0.02);
+}
+const SFX = {
+  move: ()=> tone(320,0.09,'sine',0.12,0,220),
+  attack: ()=> { tone(180,0.08,'square',0.14,0); tone(90,0.12,'square',0.12,0.05); },
+  hit: ()=> tone(110,0.15,'sawtooth',0.16,0,60),
+  death: ()=> tone(300,0.35,'sawtooth',0.14,0,40),
+  hut: ()=> { tone(520,0.1,'triangle',0.15,0); tone(780,0.14,'triangle',0.15,0.09); },
+  capture: ()=> { tone(400,0.12,'triangle',0.16,0); tone(600,0.12,'triangle',0.16,0.1); tone(800,0.2,'triangle',0.18,0.2); },
+  train: ()=> tone(500,0.1,'square',0.12,0,650),
+  tech: ()=> { tone(440,0.1,'triangle',0.15,0); tone(660,0.1,'triangle',0.15,0.1); tone(880,0.16,'triangle',0.18,0.2); },
+  endturn: ()=> tone(260,0.12,'sine',0.12,0,180),
+  victory: ()=> { [523,659,784,1047].forEach((f,i)=>tone(f,0.22,'triangle',0.18,i*0.14)); },
+  defeat: ()=> { [400,340,280,220].forEach((f,i)=>tone(f,0.28,'sawtooth',0.14,i*0.16)); },
+  denied: ()=> tone(140,0.1,'square',0.1,0),
+};
+document.getElementById('mutebtn').onclick = function(){
+  soundOn = !soundOn;
+  this.textContent = soundOn ? '🔊' : '🔇';
+  if(soundOn){ ensureAudio(); tone(500,0.08,'sine',0.1,0); }
+};
+
+/* ============================== CANVAS SETUP ============================== */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+function resize(){
+  canvas.width = window.innerWidth * devicePixelRatio;
+  canvas.height = window.innerHeight * devicePixelRatio;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  draw();
+}
+window.addEventListener('resize', resize);
+
+/* ============================== MAP GENERATION ============================== */
+function genMap(){
+  map = [];
+  for(let y=0;y<ROWS;y++){
+    const row = [];
+    for(let x=0;x<COLS;x++){
+      row.push({terrain:'GRASS', owner:null, hasHut:false, cityId:null});
+    }
+    map.push(row);
+  }
+  const seedA = Math.random()*1000, seedB = Math.random()*1000;
+  for(let y=0;y<ROWS;y++){
+    for(let x=0;x<COLS;x++){
+      const n = Math.sin((x+seedA)*0.6)*Math.cos((y+seedB)*0.6) + Math.sin((x*0.35+seedB))*0.4;
+      const edge = (x<1||x>=COLS-1||y<1||y>=ROWS-1);
+      let t = 'GRASS';
+      if(edge && Math.random()<0.55) t='WATER';
+      else if(n < -0.55) t='WATER';
+      else if(n > 0.68) t='MOUNTAIN';
+      else if(n > 0.50) t='HILLS';
+      else if(n > 0.28) t='FOREST';
+      else if(Math.random()<0.10) t='RESOURCE';
+      map[y][x].terrain = t;
+    }
+  }
+  let hutsPlaced = 0, tries=0;
+  while(hutsPlaced < 6 && tries < 400){
+    tries++;
+    const x = 2+Math.floor(Math.random()*(COLS-4));
+    const y = 2+Math.floor(Math.random()*(ROWS-4));
+    const t = map[y][x];
+    if(TERRAIN[t.terrain].walk && !t.hasHut){
+      t.hasHut = true; hutsPlaced++;
+    }
+  }
+}
+function forceWalkable(x,y){
+  if(!TERRAIN[map[y][x].terrain].walk) map[y][x].terrain = 'GRASS';
+}
+
+/* ============================== ISO PROJECTION ============================== */
+function tileToScreen(x,y){
+  return { sx: (x - y) * (TILE_W/2), sy: (x + y) * (TILE_H/2) };
+}
+function screenToTile(sx, sy){
+  const x = (sx/(TILE_W/2) + sy/(TILE_H/2)) / 2;
+  const y = (sy/(TILE_H/2) - sx/(TILE_W/2)) / 2;
+  return { x: Math.round(x), y: Math.round(y) };
+}
+function worldOrigin(){
+  const cx = window.innerWidth/2;
+  const cy = 130;
+  return { ox: cx + cam.x, oy: cy + cam.y };
+}
+function project(x,y){
+  const {sx,sy} = tileToScreen(x,y);
+  const {ox,oy} = worldOrigin();
+  return { px: ox + sx*cam.scale, py: oy + sy*cam.scale };
+}
+function unproject(px,py){
+  const {ox,oy} = worldOrigin();
+  const sx = (px-ox)/cam.scale, sy=(py-oy)/cam.scale;
+  return screenToTile(sx,sy);
+}
+
+/* ============================== HELPERS ============================== */
+function inBounds(x,y){ return x>=0 && y>=0 && x<COLS && y<ROWS; }
+function tileAt(x,y){ return inBounds(x,y) ? map[y][x] : null; }
+function unitAt(x,y){ return units.find(u=>u.x===x && u.y===y); }
+function cityAt(x,y){ return cities.find(c=>c.x===x && c.y===y); }
+function neighbors(x,y){
+  return [[x+1,y],[x-1,y],[x,y+1],[x,y-1],[x+1,y-1],[x-1,y+1]].filter(([a,b])=>inBounds(a,b));
+}
+function dist(x1,y1,x2,y2){
+  const dx = x2-x1, dy = y2-y1;
+  if((dx>=0)===(dy>=0)) return Math.abs(dx)+Math.abs(dy) - Math.min(Math.abs(dx),Math.abs(dy));
+  return Math.abs(dx)+Math.abs(dy);
+}
+function ownerColor(owner){ return owner===PLAYER ? COLORS.player : owner===ENEMY ? COLORS.enemy : null; }
+function nextId(){ return uidCounter++; }
+function hasTech(owner,id){ return techs[owner].has(id); }
+
+/* ============================== SETUP GAME ============================== */
+function newGame(){
+  genMap();
+  units = []; cities = []; selected=null; reachable=[]; attackable=[];
+  stars = {player:6, enemy:6};
+  techs = {player:new Set(), enemy:new Set()};
+  turn = 1; currentTurnOwner = PLAYER; gameOver = false;
+  panelMode = null;
+
+  const px=2, py=2, ex=COLS-3, ey=ROWS-3;
+  forceWalkable(px,py); forceWalkable(ex,ey);
+  map[py][px].hasHut=false; map[ey][ex].hasHut=false;
+
+  foundCity(px,py,PLAYER,true);
+  foundCity(ex,ey,ENEMY,true);
+
+  const pux = (tileAt(px+1,py)) ? px+1 : px-1;
+  const eux = ex-1;
+  forceWalkable(pux,py); forceWalkable(eux,ey);
+  spawnUnit(pux, py, PLAYER, 'warrior');
+  spawnUnit(eux, ey, ENEMY, 'warrior');
+
+  claimAround(px,py,PLAYER);
+  claimAround(ex,ey,ENEMY);
+
+  cam.x=0; cam.y=0;
+  updateHUD();
+  resize();
+}
+
+function cityMaxHp(owner){ return hasTech(owner,'fortification') ? 25 : 15; }
+
+function foundCity(x,y,owner,capital){
+  forceWalkable(x,y);
+  const maxHp = cityMaxHp(owner);
+  const c = {id:nextId(), x,y,owner,name: owner===PLAYER?'Your City':'Rival City', hp:maxHp, maxHp, capital: !!capital, level:1};
+  cities.push(c);
+  map[y][x].cityId = c.id;
+  map[y][x].owner = owner;
+  claimAround(x,y,owner);
+  return c;
+}
+function claimAround(x,y,owner){
+  map[y][x].owner = owner;
+  neighbors(x,y).forEach(([nx,ny])=>{ if(!map[ny][nx].owner) map[ny][nx].owner = owner; });
+}
+function spawnUnit(x,y,owner,type){
+  const u = {id:nextId(), x,y,owner,type,hp:UNIT_TYPES[type].hp,moved:false,attacked:false};
+  units.push(u);
+  return u;
+}
+
+/* ============================== DRAWING ============================== */
+function tileColor(t){ return TERRAIN[t].color; }
+function darken(hex, amt){
+  const c = hex.replace('#','');
+  const num = parseInt(c,16);
+  let r=(num>>16)-amt, g=((num>>8)&0xff)-amt, b=(num&0xff)-amt;
+  r=Math.max(0,r);g=Math.max(0,g);b=Math.max(0,b);
+  return `rgb(${r},${g},${b})`;
+}
+function diamondPath(px,py,w,h){
+  ctx.beginPath();
+  ctx.moveTo(px, py - h/2);
+  ctx.lineTo(px + w/2, py);
+  ctx.lineTo(px, py + h/2);
+  ctx.lineTo(px - w/2, py);
+  ctx.closePath();
+}
+function drawTile(x,y){
+  const {px,py} = project(x,y);
+  const w = TILE_W*cam.scale, h = TILE_H*cam.scale, top = TILE_TOP*cam.scale;
+  const t = map[y][x];
+  const base = tileColor(t.terrain);
+  const isWater = t.terrain==='WATER';
+
+  if(!isWater){
+    ctx.fillStyle = darken(base, 45);
+    ctx.beginPath();
+    ctx.moveTo(px-w/2, py);
+    ctx.lineTo(px, py+h/2);
+    ctx.lineTo(px, py+h/2+top);
+    ctx.lineTo(px-w/2, py+top);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = darken(base, 25);
+    ctx.beginPath();
+    ctx.moveTo(px+w/2, py);
+    ctx.lineTo(px, py+h/2);
+    ctx.lineTo(px, py+h/2+top);
+    ctx.lineTo(px+w/2, py+top);
+    ctx.closePath(); ctx.fill();
+  }
+
+  ctx.fillStyle = base;
+  diamondPath(px,py,w,h);
+  ctx.fill();
+
+  if(t.owner){
+    ctx.save();
+    diamondPath(px,py,w,h);
+    ctx.clip();
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = ownerColor(t.owner);
+    ctx.fillRect(px-w/2,py-h/2,w,h);
+    ctx.restore();
+  }
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1;
+  diamondPath(px,py,w,h);
+  ctx.stroke();
+
+  if(t.terrain==='FOREST'){
+    drawGlyph(px, py-4*cam.scale, '🌲', 16*cam.scale);
+  } else if(t.terrain==='MOUNTAIN'){
+    drawGlyph(px, py-4*cam.scale, '⛰️', 16*cam.scale);
+  } else if(t.terrain==='HILLS'){
+    drawGlyph(px, py-3*cam.scale, '🏔️', 14*cam.scale);
+  } else if(t.terrain==='RESOURCE'){
+    drawGlyph(px, py-2*cam.scale, '🌾', 14*cam.scale);
+  }
+  if(t.hasHut){
+    drawGlyph(px, py-6*cam.scale, '🛖', 18*cam.scale);
+  }
+
+  const isReach = reachable.some(p=>p.x===x&&p.y===y);
+  const isAtk = attackable.some(p=>p.x===x&&p.y===y);
+  if(isReach){
+    ctx.save(); diamondPath(px,py,w,h); ctx.fillStyle='rgba(216,173,75,0.35)'; ctx.fill();
+    ctx.strokeStyle='rgba(216,173,75,0.9)'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+  }
+  if(isAtk){
+    ctx.save(); diamondPath(px,py,w,h); ctx.fillStyle='rgba(194,74,58,0.4)'; ctx.fill();
+    ctx.strokeStyle='rgba(194,74,58,0.95)'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+  }
+}
+function drawGlyph(px,py,glyph,size){
+  ctx.font = `${size}px serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(glyph, px, py);
+}
+function drawCity(c){
+  const {px,py} = project(c.x,c.y);
+  const s = cam.scale;
+  const w=34*s, h=40*s;
+  const col = ownerColor(c.owner);
+  ctx.fillStyle = darken(col===COLORS.player?'#3d7fd6':'#c24a3a', 60);
+  ctx.fillRect(px-w/2, py-h*0.55, w, h*0.55);
+  ctx.fillStyle = col;
+  ctx.fillRect(px-w/2, py-h*0.75, w, h*0.28);
+  ctx.beginPath();
+  ctx.moveTo(px-w/2-4*s, py-h*0.72);
+  ctx.lineTo(px, py-h*1.05);
+  ctx.lineTo(px+w/2+4*s, py-h*0.72);
+  ctx.closePath();
+  ctx.fillStyle = darken(col,10);
+  ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.stroke();
+
+  if(c.capital){ drawGlyph(px, py-h*1.18, '👑', 14*s); }
+  drawHpBar(px, py-h*1.0-8*s, c.hp, c.maxHp, w);
+  if(selected && selected.kind==='city' && selected.id===c.id){
+    ctx.save();
+    diamondPath(px,py+4*s,44*s,26*s);
+    ctx.strokeStyle= '#d8ad4b'; ctx.lineWidth=3; ctx.stroke();
+    ctx.restore();
+  }
+}
+function drawHpBar(px,py,hp,maxhp,w){
+  const bw = Math.min(w, 40);
+  const bh = 4;
+  const pct = Math.max(0,hp/maxhp);
+  ctx.fillStyle='rgba(0,0,0,0.5)';
+  ctx.fillRect(px-bw/2, py, bw, bh);
+  ctx.fillStyle = pct>0.5 ? '#7fbf6a' : pct>0.25 ? '#d8ad4b' : '#c24a3a';
+  ctx.fillRect(px-bw/2, py, bw*pct, bh);
+}
+function drawUnit(u){
+  const {px,py} = project(u.x,u.y);
+  const s = cam.scale;
+  const col = ownerColor(u.owner);
+  const info = UNIT_TYPES[u.type];
+  const r = 14*s;
+  ctx.save();
+  ctx.globalAlpha=0.35;
+  ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(px, py+4*s, 10*s, 4*s, 0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(px, py-10*s, r, 0, Math.PI*2);
+  ctx.fillStyle = col;
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = u.moved ? 'rgba(255,255,255,0.35)' : '#fff3e6';
+  ctx.stroke();
+  drawGlyph(px, py-10*s, info.glyph, 14*s);
+  drawHpBar(px, py-10*s-16*s, u.hp, info.hp, 26);
+  if(selected && selected.kind==='unit' && selected.id===u.id){
+    ctx.beginPath();
+    ctx.arc(px, py-10*s, r+4*s, 0, Math.PI*2);
+    ctx.strokeStyle='#d8ad4b'; ctx.lineWidth=3; ctx.stroke();
+  }
+}
+function draw(){
+  ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+  for(let y=0;y<ROWS;y++){
+    for(let x=0;x<COLS;x++){
+      drawTile(x,y);
+    }
+  }
+  const entities = [
+    ...cities.map(c=>({id:c.id, x:c.x, y:c.y, kind:'city'})),
+    ...units.map(u=>({id:u.id, x:u.x, y:u.y, kind:'unit'}))
+  ].sort((a,b)=> (a.x+a.y) - (b.x+b.y));
+  entities.forEach(e=>{
+    if(e.kind==='city') drawCity(cities.find(c=>c.id===e.id));
+    else drawUnit(units.find(u=>u.id===e.id));
+  });
+}
+
+/* ============================== INTERACTION ============================== */
+function screenPosFromEvent(e){
+  const rect = canvas.getBoundingClientRect();
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX-rect.left, y: t.clientY-rect.top };
+}
+canvas.addEventListener('mousedown', onDown);
+canvas.addEventListener('touchstart', onDown, {passive:true});
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('touchmove', onMove, {passive:true});
+window.addEventListener('mouseup', onUp);
+window.addEventListener('touchend', onUp);
+
+function onDown(e){
+  dragging = true; dragMoved=false;
+  const p = screenPosFromEvent(e);
+  dragStart = p; camStart = {x:cam.x, y:cam.y};
+}
+function onMove(e){
+  if(!dragging) return;
+  const p = screenPosFromEvent(e);
+  const dx = p.x-dragStart.x, dy = p.y-dragStart.y;
+  if(Math.abs(dx)>4 || Math.abs(dy)>4) dragMoved = true;
+  if(dragMoved){
+    cam.x = camStart.x + dx;
+    cam.y = camStart.y + dy;
+    draw();
+  }
+}
+function onUp(e){
+  if(dragging && !dragMoved){
+    const p = dragStart;
+    handleTap(p.x, p.y);
+  }
+  dragging=false;
+}
+
+function handleTap(px,py){
+  if(gameOver) return;
+  ensureAudio();
+  const {x,y} = unproject(px,py);
+  if(!inBounds(x,y)) { closePanel(); return; }
+
+  if(selected && selected.kind==='unit'){
+    const u = units.find(uu=>uu.id===selected.id);
+    if(u && currentTurnOwner===PLAYER && u.owner===PLAYER){
+      const canMove = reachable.some(p=>p.x===x&&p.y===y);
+      const canAtk = attackable.some(p=>p.x===x&&p.y===y);
+      if(canAtk){ doAttack(u, x, y); return; }
+      if(canMove){ doMove(u, x, y); return; }
+    }
+  }
+  selectTile(x,y);
+}
+
+function selectTile(x,y){
+  const u = unitAt(x,y);
+  const c = cityAt(x,y);
+  reachable = []; attackable = [];
+  panelMode = 'tile';
+  if(u){
+    selected = {kind:'unit', id:u.id};
+    if(u.owner===PLAYER && currentTurnOwner===PLAYER){
+      computeUnitRange(u);
+    }
+    openUnitPanel(u);
+  } else if(c){
+    selected = {kind:'city', id:c.id};
+    openCityPanel(c);
+  } else {
+    selected = null;
+    closePanel();
+  }
+  draw();
+}
+
+function computeUnitRange(u){
+  reachable = []; attackable = [];
+  if(u.moved) { computeAttackFrom(u,u.x,u.y); return; }
+  const info = UNIT_TYPES[u.type];
+  const visited = {[u.x+','+u.y]:0};
+  const queue = [[u.x,u.y,0]];
+  while(queue.length){
+    const [cx,cy,d] = queue.shift();
+    if(d>=info.move) continue;
+    for(const [nx,ny] of neighbors(cx,cy)){
+      const key = nx+','+ny;
+      const t = tileAt(nx,ny);
+      if(!t || !TERRAIN[t.terrain].walk) continue;
+      if(unitAt(nx,ny)) continue;
+      if(visited[key]!==undefined) continue;
+      visited[key] = d+1;
+      queue.push([nx,ny,d+1]);
+    }
+  }
+  Object.keys(visited).forEach(k=>{
+    if(k===u.x+','+u.y) return;
+    const [x,y] = k.split(',').map(Number);
+    reachable.push({x,y});
+  });
+  computeAttackFrom(u, u.x, u.y);
+  reachable.forEach(p=> computeAttackFrom(u,p.x,p.y));
+}
+function computeAttackFrom(u,fx,fy){
+  const info = UNIT_TYPES[u.type];
+  for(let y=0;y<ROWS;y++){
+    for(let x=0;x<COLS;x++){
+      const d = dist(fx,fy,x,y);
+      if(d<=info.range && d>0){
+        const enemyU = unitAt(x,y);
+        const enemyC = cityAt(x,y);
+        if((enemyU && enemyU.owner!==u.owner) || (enemyC && enemyC.owner!==u.owner)){
+          if(!attackable.some(p=>p.x===x&&p.y===y)) attackable.push({x,y});
+        }
+      }
+    }
+  }
+}
+
+function doMove(u,x,y){
+  u.x = x; u.y = y; u.moved = true;
+  claimAround(x,y,u.owner);
+  SFX.move();
+  const t = tileAt(x,y);
+  if(t.hasHut){
+    t.hasHut = false;
+    stars[u.owner] += 5;
+    SFX.hut();
+    showToast((u.owner===PLAYER?'You':'Rival')+' found a village! +5 ⭐');
+    updateHUD();
+  }
+  selected = {kind:'unit', id:u.id};
+  computeUnitRange(u);
+  openUnitPanel(u);
+  draw();
+}
+
+function defenseValue(u){
+  const info = UNIT_TYPES[u.type];
+  const t = tileAt(u.x,u.y);
+  let d = info.def;
+  if(t && TERRAIN[t.terrain].defBonus) d = Math.round(d*TERRAIN[t.terrain].defBonus);
+  return d;
+}
+
+function doAttack(u, x, y){
+  const info = UNIT_TYPES[u.type];
+  const targetU = unitAt(x,y);
+  const targetC = cityAt(x,y);
+  SFX.attack();
+  if(targetU){
+    resolveCombat(u, targetU);
+  } else if(targetC){
+    const mult = info.siege ? 1.5 : 1;
+    targetC.hp -= Math.round(info.atk*3*mult);
+    SFX.hit();
+    showToast('City attacked!');
+    if(targetC.hp<=0){ captureCity(targetC, u.owner); }
+  }
+  u.attacked = true; u.moved = true;
+  reachable=[]; attackable=[];
+  if(units.includes(u)) { selected={kind:'unit',id:u.id}; openUnitPanel(u); }
+  else { selected=null; closePanel(); }
+  draw();
+  checkWinLose();
+}
+
+function resolveCombat(att, def){
+  const ai = UNIT_TYPES[att.type], di = UNIT_TYPES[def.type];
+  const defStat = defenseValue(def);
+  const dmgToDef = Math.max(1, Math.round(ai.atk*3 * (ai.atk/(ai.atk+defStat)) ));
+  def.hp -= dmgToDef;
+  SFX.hit();
+  showToast(`${ai.name} hits ${di.name} for ${dmgToDef}`);
+  if(def.hp<=0){
+    units = units.filter(x=>x.id!==def.id);
+    SFX.death();
+    showToast(`${di.name} defeated!`);
+  } else if(dist(att.x,att.y,def.x,def.y)<=1){
+    const attStat = defenseValue(att);
+    const dmgToAtt = Math.max(1, Math.round(di.atk*2 * (attStat/(attStat+di.atk)) ));
+    att.hp -= dmgToAtt;
+    if(att.hp<=0){
+      units = units.filter(x=>x.id!==att.id);
+      SFX.death();
+      showToast(`${ai.name} was destroyed in the counterattack!`);
+    }
+  }
+}
+
+function captureCity(c, byOwner){
+  showToast((byOwner===PLAYER?'You':'Rival') + ' captured a city!');
+  SFX.capture();
+  c.owner = byOwner;
+  c.maxHp = cityMaxHp(byOwner);
+  c.hp = c.maxHp;
+  claimAround(c.x,c.y,byOwner);
+}
+
+/* ============================== PANEL UI ============================== */
+const panel = document.getElementById('panel');
+const panelTitle = document.getElementById('panelTitle');
+const panelDesc = document.getElementById('panelDesc');
+const panelActions = document.getElementById('panelActions');
+document.getElementById('closepanel').onclick = ()=>{ closePanel(); selected=null; reachable=[];attackable=[]; draw(); };
+
+function closePanel(){ panel.classList.remove('show'); panelMode=null; }
+function openPanel(){ panel.classList.add('show'); }
+
+function openUnitPanel(u){
+  const info = UNIT_TYPES[u.type];
+  panelMode = 'tile';
+  panelTitle.textContent = `${info.glyph} ${info.name} — ${u.owner===PLAYER?'Your unit':'Rival unit'}`;
+  panelDesc.textContent = `HP ${u.hp}/${info.hp}  ·  ATK ${info.atk}  ·  DEF ${info.def}  ·  Move ${info.move}  ·  Range ${info.range}`;
+  panelActions.innerHTML='';
+  if(u.owner===PLAYER && currentTurnOwner===PLAYER){
+    const doneBtn = mkBtn('End move', ()=>{ u.moved=true; u.attacked=true; reachable=[];attackable=[]; closePanel(); selected=null; draw(); });
+    panelActions.appendChild(doneBtn);
+  }
+  openPanel();
+}
+
+function openCityPanel(c){
+  const isMine = c.owner===PLAYER && currentTurnOwner===PLAYER;
+  panelMode = 'tile';
+  panelTitle.textContent = (c.capital?'👑 ':'🏙 ') + (c.owner===PLAYER?'Your City':'Rival City');
+  panelDesc.textContent = `HP ${c.hp}/${c.maxHp}  ·  Income +2⭐/turn` + (isMine?'  ·  Train a unit:':'');
+  panelActions.innerHTML='';
+  if(isMine){
+    Object.entries(UNIT_TYPES).forEach(([key,info])=>{
+      const unlocked = !info.tech || hasTech(PLAYER, info.tech);
+      const canAfford = stars.player>=info.cost;
+      const spotFree = !unitAt(c.x,c.y);
+      const b = mkBtn(`${info.glyph} ${info.name}`, ()=>trainUnit(c,key));
+      b.disabled = !unlocked || !canAfford || !spotFree;
+      const small = document.createElement('small');
+      if(!unlocked) small.textContent = `needs ${TECHS[info.tech].name}`;
+      else if(!spotFree) small.textContent = 'tile occupied';
+      else small.textContent = `${info.cost}⭐`;
+      b.appendChild(small);
+      panelActions.appendChild(b);
+    });
+  }
+  openPanel();
+}
+
+function openTechPanel(){
+  panelMode = 'tech';
+  selected = null; reachable=[]; attackable=[];
+  panelTitle.textContent = '🧪 Research';
+  panelDesc.textContent = `You have ${stars.player} ⭐. Unlock new units and bonuses.`;
+  panelActions.innerHTML='';
+  const wrap = document.createElement('div');
+  wrap.style.width='100%';
+  Object.entries(TECHS).forEach(([id,t])=>{
+    const row = document.createElement('div');
+    row.className='techrow';
+    const owned = hasTech(PLAYER,id);
+    const missingReq = t.requires.filter(r=>!hasTech(PLAYER,r));
+    const name = document.createElement('div');
+    name.className='name';
+    name.textContent = (owned?'✅ ':'🔒 ') + t.name + (owned?'':`  ·  ${t.cost}⭐`);
+    const desc = document.createElement('div');
+    desc.className='desc';
+    desc.textContent = t.desc + (missingReq.length? `  (requires ${missingReq.map(r=>TECHS[r].name).join(', ')})`:'');
+    row.appendChild(name); row.appendChild(desc);
+    if(!owned){
+      const b = mkBtn('Research', ()=>{ if(researchTech(PLAYER,id)){ updateHUD(); openTechPanel(); draw(); } else { SFX.denied(); } });
+      b.className='btn primary wide';
+      b.disabled = missingReq.length>0 || stars.player<t.cost;
+      row.appendChild(b);
+    }
+    wrap.appendChild(row);
+  });
+  panelActions.appendChild(wrap);
+  draw();
+  openPanel();
+}
+document.getElementById('techbtn').onclick = ()=>{
+  ensureAudio();
+  if(panelMode==='tech'){ closePanel(); }
+  else openTechPanel();
+};
+
+function mkBtn(label, onclick){
+  const b = document.createElement('button');
+  b.className='btn primary';
+  b.textContent = label;
+  b.onclick = onclick;
+  return b;
+}
+
+function trainUnit(c, type){
+  const info = UNIT_TYPES[type];
+  if(info.tech && !hasTech(PLAYER,info.tech)) return;
+  if(stars.player < info.cost) return;
+  if(unitAt(c.x,c.y)) { showToast('Tile occupied — move your unit first'); return; }
+  stars.player -= info.cost;
+  const u = spawnUnit(c.x,c.y,PLAYER,type);
+  u.moved = true; u.attacked = true;
+  SFX.train();
+  updateHUD();
+  openCityPanel(c);
+  draw();
+}
+
+function researchTech(owner, id){
+  const t = TECHS[id];
+  if(hasTech(owner,id)) return false;
+  if(t.requires.some(r=>!hasTech(owner,r))) return false;
+  if(stars[owner] < t.cost) return false;
+  stars[owner] -= t.cost;
+  techs[owner].add(id);
+  if(id==='fortification'){
+    cities.filter(c=>c.owner===owner).forEach(c=>{ c.maxHp+=10; c.hp+=10; });
+  }
+  if(owner===PLAYER) SFX.tech();
+  showToast((owner===PLAYER?'You researched ':'Rival researched ') + t.name + '!');
+  return true;
+}
+
+/* ============================== HUD / TOAST ============================== */
+function updateHUD(){
+  document.getElementById('stars').textContent = stars.player;
+  document.getElementById('turnnum').textContent = turn;
+}
+let toastTimer=null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+/* ============================== TURN MANAGEMENT ============================== */
+document.getElementById('endturn').onclick = ()=>{
+  ensureAudio();
+  if(currentTurnOwner!==PLAYER || gameOver) return;
+  endPlayerTurn();
+};
+
+function endPlayerTurn(){
+  selected=null; reachable=[]; attackable=[]; closePanel();
+  currentTurnOwner = ENEMY;
+  SFX.endturn();
+  showToast('Rival is on the move…');
+  draw();
+  setTimeout(runEnemyTurn, 500);
+}
+
+function income(owner){
+  let total = 0;
+  cities.filter(c=>c.owner===owner).forEach(()=> total += 2);
+  if(hasTech(owner,'farming')){
+    for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){
+      const t = map[y][x];
+      if(t.owner===owner && t.terrain==='RESOURCE') total += 1;
+    }
+  }
+  return total;
+}
+
+function runEnemyTurn(){
+  stars.enemy += income(ENEMY);
+  stars.player += income(PLAYER);
+
+  const nextTech = AI_TECH_ORDER.find(id=>!hasTech(ENEMY,id) && TECHS[id].requires.every(r=>hasTech(ENEMY,r)));
+  if(nextTech && stars.enemy >= TECHS[nextTech].cost && Math.random()<0.9){
+    researchTech(ENEMY, nextTech);
+  }
+
+  const enemyUnits = units.filter(u=>u.owner===ENEMY);
+  enemyUnits.forEach(u=>{
+    u.moved=false; u.attacked=false;
+    aiActUnit(u);
+  });
+
+  cities.filter(c=>c.owner===ENEMY).forEach(c=>{
+    if(unitAt(c.x,c.y)) return;
+    const buyable = Object.entries(UNIT_TYPES).filter(([k,info])=> (!info.tech || hasTech(ENEMY,info.tech)) && stars.enemy>=info.cost);
+    if(buyable.length && Math.random()<0.85){
+      const [key,info] = buyable[Math.floor(Math.random()*buyable.length)];
+      stars.enemy -= info.cost;
+      const u = spawnUnit(c.x,c.y,ENEMY,key);
+      u.moved=true; u.attacked=true;
+    }
+  });
+
+  turn += 1;
+  currentTurnOwner = PLAYER;
+  units.forEach(u=>{ if(u.owner===PLAYER){ u.moved=false; u.attacked=false; } });
+  updateHUD();
+  showToast('Your turn, Turn ' + turn);
+  draw();
+  checkWinLose();
+}
+
+function aiActUnit(u){
+  const targets = [
+    ...units.filter(t=>t.owner===PLAYER).map(t=>({x:t.x,y:t.y})),
+    ...cities.filter(t=>t.owner===PLAYER).map(t=>({x:t.x,y:t.y})),
+  ];
+  if(targets.length===0) return;
+  targets.sort((a,b)=> dist(u.x,u.y,a.x,a.y) - dist(u.x,u.y,b.x,b.y));
+  const target = targets[0];
+  const info = UNIT_TYPES[u.type];
+
+  if(dist(u.x,u.y,target.x,target.y) <= info.range){
+    const tu = unitAt(target.x,target.y);
+    const tc = cityAt(target.x,target.y);
+    if(tu) resolveCombat(u, tu);
+    else if(tc){ const mult=info.siege?1.5:1; tc.hp -= Math.round(info.atk*3*mult); if(tc.hp<=0) captureCity(tc, ENEMY); }
+    u.moved=true; u.attacked=true;
+    return;
+  }
+
+  const visited = {[u.x+','+u.y]:0};
+  const queue=[[u.x,u.y,0]];
+  while(queue.length){
+    const [cx,cy,d]=queue.shift();
+    if(d>=info.move) continue;
+    for(const [nx,ny] of neighbors(cx,cy)){
+      const key=nx+','+ny;
+      const t=tileAt(nx,ny);
+      if(!t||!TERRAIN[t.terrain].walk) continue;
+      if(unitAt(nx,ny)) continue;
+      if(visited[key]!==undefined) continue;
+      visited[key]=d+1;
+      queue.push([nx,ny,d+1]);
+    }
+  }
+  let options = Object.keys(visited).filter(k=>k!==u.x+','+u.y).map(k=>{
+    const [x,y]=k.split(',').map(Number); return {x,y,d:dist(x,y,target.x,target.y)};
+  });
+  if(options.length===0) return;
+  options.sort((a,b)=>a.d-b.d);
+  const best = options[0];
+  u.x=best.x; u.y=best.y; u.moved=true;
+  claimAround(u.x,u.y,ENEMY);
+  const t = tileAt(u.x,u.y);
+  if(t.hasHut){ t.hasHut=false; stars.enemy+=5; }
+
+  if(dist(u.x,u.y,target.x,target.y) <= info.range){
+    const tu = unitAt(target.x,target.y);
+    const tc = cityAt(target.x,target.y);
+    if(tu) resolveCombat(u, tu);
+    else if(tc){ const mult=info.siege?1.5:1; tc.hp -= Math.round(info.atk*3*mult); if(tc.hp<=0) captureCity(tc, ENEMY); }
+    u.attacked=true;
+  }
+}
+
+function checkWinLose(){
+  const playerCapital = cities.find(c=>c.capital && c.owner===PLAYER);
+  const enemyCapital = cities.find(c=>c.capital && c.owner===ENEMY);
+  if(!enemyCapital){ endGame(true); }
+  else if(!playerCapital){ endGame(false); }
+}
+
+function endGame(won){
+  gameOver = true;
+  if(won) SFX.victory(); else SFX.defeat();
+  document.getElementById('gameover').classList.add('show');
+  document.getElementById('goTitle').textContent = won ? 'Victory!' : 'Defeated';
+  document.getElementById('goDesc').textContent = won ?
+    'You captured the rival capital and united the isle.' :
+    'The rival has taken your capital. Your realm has fallen.';
+}
+
+/* ============================== HELP TOGGLE ============================== */
+document.getElementById('help').onclick = ()=>{
+  document.getElementById('helpcard').classList.toggle('show');
+};
+
+/* ============================== INIT ============================== */
+newGame();
+resize();
+
+})();
+</script>
+</body>
+</html>

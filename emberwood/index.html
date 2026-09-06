@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>EMBERWOOD — a pixel wandering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --panel-bg: rgba(12,14,10,0.82);
+    --panel-border: #4a5a3a;
+    --ink: #eaf2df;
+    --accent-forest: #7ec27a;
+    --accent-river: #6fb3e0;
+    --accent-mountain: #b8b0a0;
+    --accent-cave: #c9a6f0;
+    --gold: #ffd76b;
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    background:#070805;
+    font-family:'VT323', monospace;
+    color:var(--ink);
+    overflow:hidden;
+    position:fixed; inset:0;
+    -webkit-user-select:none; user-select:none;
+    touch-action:none;
+    overscroll-behavior:none;
+  }
+  #stage{
+    position:fixed; inset:0;
+    width:100%; height:100%;
+  }
+  #frame{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    overflow:hidden;
+    background:#000;
+  }
+  canvas{
+    display:block;
+    width:100%; height:100%;
+    image-rendering:pixelated;
+    image-rendering:crisp-edges;
+  }
+  .pixel-font{ font-family:'Press Start 2P', monospace; }
+
+  #hud{
+    position:absolute; inset:0; pointer-events:none;
+    padding: calc(10px + var(--safe-t)) calc(12px + var(--safe-r)) calc(10px + var(--safe-b)) calc(12px + var(--safe-l));
+  }
+  #titleBar{
+    display:flex; align-items:flex-start; justify-content:space-between;
+  }
+  #title{
+    font-size:12px;
+    letter-spacing:2px;
+    color:var(--gold);
+    text-shadow: 2px 2px 0 #000, 0 0 10px rgba(255,215,107,0.35);
+  }
+  #subtitle{
+    font-family:'VT323', monospace;
+    font-size:15px;
+    color:#cfd8c4;
+    margin-top:3px;
+    text-shadow:1px 1px 0 #000;
+  }
+  #statusBar{
+    display:flex; align-items:center; gap:10px;
+    margin-top:6px;
+  }
+  #hearts{
+    font-size:13px;
+    color:#e0463f;
+    text-shadow:1px 1px 0 #000;
+    letter-spacing:2px;
+  }
+  #swordIcon{
+    font-size:15px;
+    color:var(--gold);
+    text-shadow:1px 1px 0 #000;
+  }
+  #levelPanel{
+    margin-top:6px;
+    background:var(--panel-bg);
+    border:2px solid var(--panel-border);
+    padding:6px 9px;
+    max-width:min(78vw, 380px);
+    box-shadow:2px 2px 0 rgba(0,0,0,0.5);
+  }
+  #levelTitle{
+    font-size:8px;
+    color:var(--gold);
+    margin-bottom:4px;
+    line-height:1.4;
+  }
+  #levelDesc{
+    font-size:13px;
+    color:#cfd8c4;
+    line-height:1.2;
+  }
+  #regenBtn{
+    pointer-events:auto;
+    font-family:'Press Start 2P', monospace;
+    font-size:8px;
+    color:var(--ink);
+    background:var(--panel-bg);
+    border:2px solid var(--panel-border);
+    padding:7px 8px;
+    cursor:pointer;
+    letter-spacing:1px;
+    box-shadow:2px 2px 0 rgba(0,0,0,0.5);
+  }
+  #regenBtn:hover{ background:rgba(30,40,24,0.9); border-color:#7ec27a; }
+  #regenBtn:active{ transform:translateY(1px); }
+
+  #locWrap{
+    position:absolute; left:12px; bottom:12px;
+    display:flex; flex-direction:column; gap:4px;
+    pointer-events:none;
+  }
+  #locTag{
+    font-family:'Press Start 2P', monospace;
+    font-size:9px;
+    padding:8px 10px;
+    background:var(--panel-bg);
+    border:2px solid var(--panel-border);
+    color:var(--ink);
+    box-shadow:2px 2px 0 rgba(0,0,0,0.5);
+    transition: border-color 0.4s ease, color 0.4s ease;
+  }
+  #hint{
+    font-size:14px;
+    color:#a9b39a;
+    text-shadow:1px 1px 0 #000;
+    max-width:260px;
+  }
+
+  #toast{
+    position:absolute; left:50%; top:16%;
+    transform:translate(-50%,-8px);
+    font-family:'Press Start 2P', monospace;
+    font-size:9px;
+    text-align:center;
+    color:var(--gold);
+    background:var(--panel-bg);
+    border:2px solid var(--gold);
+    padding:10px 14px;
+    box-shadow:2px 2px 0 rgba(0,0,0,0.5);
+    opacity:0;
+    transition:opacity 0.5s ease, transform 0.5s ease;
+    pointer-events:none;
+    white-space:nowrap;
+  }
+  #toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  /* Virtual joystick — shown only on touch devices (see body.touch) */
+  #joystick{
+    display:none;
+    position:absolute;
+    left: calc(28px + var(--safe-l));
+    bottom: calc(28px + var(--safe-b));
+    width:118px; height:118px;
+    border-radius:50%;
+    background:rgba(18,20,14,0.4);
+    border:2px solid rgba(200,210,190,0.45);
+    pointer-events:auto;
+    touch-action:none;
+  }
+  #joyKnob{
+    position:absolute;
+    left:50%; top:50%;
+    width:54px; height:54px;
+    margin-left:-27px; margin-top:-27px;
+    border-radius:50%;
+    background:rgba(126,194,122,0.55);
+    border:2px solid rgba(234,242,223,0.75);
+    box-shadow:0 2px 6px rgba(0,0,0,0.4);
+    transition: background 0.15s ease;
+    will-change: transform;
+  }
+  body.touch #joystick{ display:block; }
+  body.touch #joystick.active #joyKnob{ background:rgba(126,194,122,0.85); }
+
+  /* Attack button — shown only on touch devices, mirrors the joystick */
+  #attackBtn{
+    display:none;
+    position:absolute;
+    right: calc(30px + var(--safe-r));
+    bottom: calc(34px + var(--safe-b));
+    width:76px; height:76px;
+    border-radius:50%;
+    background:rgba(120,45,40,0.5);
+    border:2px solid rgba(255,190,160,0.55);
+    color:#fff2ea;
+    font-size:26px;
+    align-items:center; justify-content:center;
+    pointer-events:auto;
+    -webkit-tap-highlight-color:transparent;
+    text-shadow:1px 1px 0 rgba(0,0,0,0.5);
+  }
+  #attackBtn:active{ background:rgba(200,90,70,0.75); }
+  body.touch #attackBtn{ display:flex; }
+
+  body.touch #locWrap{
+    left:auto; bottom:auto;
+    top: calc(132px + var(--safe-t));
+    right: calc(12px + var(--safe-r));
+    align-items:flex-end;
+  }
+  @media (max-width:899px){
+    #hint{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="frame">
+    <canvas id="game"></canvas>
+    <div id="hud">
+      <div id="titleBar">
+        <div>
+          <div id="title" class="pixel-font">EMBERWOOD</div>
+          <div id="subtitle">a wide world of quests</div>
+          <div id="statusBar" class="pixel-font">
+            <span id="hearts">♥♥♥♥♥</span>
+            <span id="swordIcon" style="display:none;">⚔</span>
+          </div>
+          <div id="levelPanel">
+            <div id="levelTitle" class="pixel-font">LEVEL 1 / 5: AWAKENING</div>
+            <div id="levelDesc">Find a sword hidden in the wild</div>
+          </div>
+        </div>
+        <button id="regenBtn">⟳ NEW WORLD</button>
+      </div>
+      <div id="locWrap">
+        <div id="locTag" class="pixel-font">MEADOW</div>
+        <div id="hint">WASD / Arrow keys to walk · Space to swing your sword</div>
+      </div>
+      <div id="toast" class="pixel-font"></div>
+      <div id="joystick">
+        <div id="joyKnob"></div>
+      </div>
+      <div id="attackBtn">⚔</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ============================================================
+// CORE CONFIG
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const TILE = 32;          // rendered tile size in px
+const PX = TILE / 8;      // 1 "pixel-art pixel" = 4 screen px (8x8 base grid)
+let VIEW_W = 768, VIEW_H = 576; // updated to fill the screen by resizeCanvas()
+
+function resizeCanvas(){
+  const w = Math.max(320, Math.floor(window.innerWidth));
+  const h = Math.max(240, Math.floor(window.innerHeight));
+  canvas.width = w;
+  canvas.height = h;
+  VIEW_W = w; VIEW_H = h;
+  ctx.imageSmoothingEnabled = false;
+}
+
+const T = { GRASS:0, FOREST:1, WATER:2, MOUNTAIN:3, CAVE:4, BRIDGE:5, PATH:6, HOUSE:7 };
+function isBlocking(id){ return id===T.FOREST || id===T.WATER || id===T.MOUNTAIN || id===T.HOUSE; }
+
+const locNames = {
+  [T.GRASS]: 'MEADOW',
+  [T.FOREST]: 'FOREST EDGE',
+  [T.WATER]: 'RIVERBANK',
+  [T.MOUNTAIN]: 'MOUNTAIN PASS',
+  [T.CAVE]: 'CAVE MOUTH',
+  [T.BRIDGE]: 'OLD BRIDGE',
+  [T.PATH]: 'DIRT PATH',
+  [T.HOUSE]: 'VILLAGE',
+};
+const locColors = {
+  [T.GRASS]: '#7ec27a', [T.FOREST]:'#4f9a5c', [T.WATER]:'#6fb3e0',
+  [T.MOUNTAIN]:'#b8b0a0', [T.CAVE]:'#c9a6f0', [T.BRIDGE]:'#caa15f', [T.PATH]:'#caa15f',
+  [T.HOUSE]:'#ffd76b',
+};
+
+// ============================================================
+// SEEDED RNG
+// ============================================================
+function mulberry32(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hash01(x,y,seed){
+  let h = (x*374761393 + y*668265263 + seed*2246822519) | 0;
+  h = (h ^ (h >>> 13)) | 0;
+  h = Math.imul(h, 1274126177);
+  h = (h ^ (h >>> 16)) >>> 0;
+  return h / 4294967296;
+}
+
+// ============================================================
+// WORLD GENERATION
+// ============================================================
+const MAP_W = 100, MAP_H = 80;
+let world = null; // { grid, W, H, seed, caveEntranceX, caveEntranceY, spawnX, spawnY, villages }
+
+function inBounds(x,y,W,H){ return x>=0 && y>=0 && x<W && y<H; }
+
+// BFS over walkable tiles to check reachability between two points
+function bfsReachable(grid, W, H, idx, startX, startY, targetX, targetY){
+  if(startX===targetX && startY===targetY) return true;
+  const visited = new Uint8Array(W*H);
+  const qx = [startX], qy = [startY];
+  visited[idx(startX,startY)] = 1;
+  let head = 0;
+  while(head < qx.length){
+    const x = qx[head], y = qy[head]; head++;
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    for(const [dx,dy] of dirs){
+      const nx = x+dx, ny = y+dy;
+      if(!inBounds(nx,ny,W,H)) continue;
+      if(visited[idx(nx,ny)]) continue;
+      const t = grid[idx(nx,ny)];
+      if(isBlocking(t)) continue;
+      if(nx===targetX && ny===targetY) return true;
+      visited[idx(nx,ny)] = 1;
+      qx.push(nx); qy.push(ny);
+    }
+  }
+  return false;
+}
+
+// Force a walkable trail between two points (Bresenham line), converting
+// blockers as it goes: mountains/forest -> PATH, water -> BRIDGE.
+function carveTrail(grid, W, H, idx, x0, y0, x1, y1){
+  let cx=x0, cy=y0;
+  const dx = Math.abs(x1-x0), dy = -Math.abs(y1-y0);
+  const sx = x0<x1 ? 1 : -1, sy = y0<y1 ? 1 : -1;
+  let err = dx+dy;
+  const carveAt = (x,y)=>{
+    for(let ox=-1; ox<=1; ox++){
+      const px=x+ox, py=y;
+      if(!inBounds(px,py,W,H)) continue;
+      const t = grid[idx(px,py)];
+      if(t===T.WATER) grid[idx(px,py)] = T.BRIDGE;
+      else if(t===T.FOREST || t===T.MOUNTAIN) grid[idx(px,py)] = T.PATH;
+    }
+  };
+  while(true){
+    carveAt(cx,cy);
+    if(cx===x1 && cy===y1) break;
+    const e2 = 2*err;
+    if(e2 >= dy){ err += dy; cx += sx; }
+    if(e2 <= dx){ err += dx; cy += sy; }
+  }
+}
+
+function generateWorld(seed){
+  const rng = mulberry32(seed);
+  const W = MAP_W, H = MAP_H;
+  const grid = new Uint8Array(W*H).fill(T.GRASS);
+  const idx = (x,y)=> y*W+x;
+
+  // --- forest blobs (upper-left leaning) ---
+  const forestSeeds = [];
+  const nForest = 9 + Math.floor(rng()*4);
+  for(let i=0;i<nForest;i++){
+    forestSeeds.push({
+      x: 6 + rng()*(W*0.55),
+      y: 6 + rng()*(H*0.6),
+      r: 6 + rng()*5
+    });
+  }
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    for(const s of forestSeeds){
+      const d = Math.hypot(x-s.x, y-s.y);
+      const noise = 0.55 + hash01(x,y,seed)*0.45;
+      if(d < s.r*noise){ grid[idx(x,y)] = T.FOREST; break; }
+    }
+  }
+
+  // --- mountain blobs (lower-right leaning) ---
+  const mtnSeeds = [];
+  const nMtn = 5 + Math.floor(rng()*3);
+  for(let i=0;i<nMtn;i++){
+    mtnSeeds.push({
+      x: W*0.5 + rng()*(W*0.42),
+      y: H*0.42 + rng()*(H*0.5),
+      r: 7 + rng()*6
+    });
+  }
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    for(const s of mtnSeeds){
+      const d = Math.hypot(x-s.x, y-s.y);
+      const noise = 0.5 + hash01(x+91,y+17,seed)*0.5;
+      if(d < s.r*noise){ grid[idx(x,y)] = T.MOUNTAIN; break; }
+    }
+  }
+
+  // --- river: meandering path top to bottom ---
+  let col = Math.floor(W*0.28 + rng()*W*0.2);
+  const riverCols = [];
+  for(let y=0;y<H;y++){
+    riverCols.push(col);
+    grid[idx(col,y)] = T.WATER;
+    if(col+1<W-2 && rng()<0.35) grid[idx(col+1,y)] = T.WATER;
+    const step = rng();
+    if(step<0.32) col -= 1; else if(step>0.68) col += 1;
+    col = Math.max(2, Math.min(W-3, col));
+  }
+
+  // --- bridges: guarantee crossability at two rows ---
+  const bridgeRows = [Math.floor(H*0.28), Math.floor(H*0.68)];
+  for(const by of bridgeRows){
+    const bc = riverCols[by];
+    for(let dx=-1; dx<=2; dx++){
+      const bx = bc+dx;
+      if(!inBounds(bx,by,W,H)) continue;
+      grid[idx(bx,by)] = (dx===0||dx===1) ? T.BRIDGE : T.PATH;
+    }
+    // clear approach on both banks so forest/mountain can't seal the crossing
+    for(let dy=-1; dy<=1; dy++) for(let dx=-2; dx<=3; dx++){
+      const bx=bc+dx, byy=by+dy;
+      if(!inBounds(bx,byy,W,H)) continue;
+      if(grid[idx(bx,byy)]!==T.WATER && grid[idx(bx,byy)]!==T.BRIDGE){
+        grid[idx(bx,byy)] = T.PATH;
+      }
+    }
+  }
+
+  // --- cave entrance: a mountain tile bordering open ground ---
+  let caveX=-1, caveY=-1, bestScore=-1;
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
+    if(grid[idx(x,y)]!==T.MOUNTAIN) continue;
+    const south = grid[idx(x,y+1)];
+    if(south===T.GRASS || south===T.PATH){
+      const distToCenter = Math.hypot(x-W/2, y-H/2);
+      const score = 100 - distToCenter;
+      if(score>bestScore){ bestScore=score; caveX=x; caveY=y; }
+    }
+  }
+  if(caveX<0){
+    // fallback: force one
+    caveX = Math.floor(W*0.72); caveY = Math.floor(H*0.55);
+    grid[idx(caveX,caveY)] = T.MOUNTAIN;
+    grid[idx(caveX,caveY+1)] = T.GRASS;
+  }
+  grid[idx(caveX,caveY)] = T.CAVE;
+  // small clearing in front of the cave mouth
+  for(let dx=-1;dx<=1;dx++){
+    const gx=caveX+dx, gy=caveY+1;
+    if(inBounds(gx,gy,W,H) && grid[idx(gx,gy)]!==T.WATER) grid[idx(gx,gy)] = T.PATH;
+  }
+
+  // --- spawn point: find walkable tile near a fixed anchor ---
+  const anchor = {x: 4, y: H-4};
+  let spawnX=anchor.x, spawnY=anchor.y;
+  outer:
+  for(let r=0;r<Math.max(W,H);r++){
+    for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
+      const x=anchor.x+dx, y=anchor.y+dy;
+      if(!inBounds(x,y,W,H)) continue;
+      const t = grid[idx(x,y)];
+      if(!isBlocking(t) && t!==T.CAVE){ spawnX=x; spawnY=y; break outer; }
+    }
+  }
+
+  // --- guarantee the cave clearing is actually reachable from spawn ---
+  // (a mountain blob can otherwise seal its own "grass" doorstep into an island)
+  const clearingX = caveX, clearingY = caveY+1;
+  if(!bfsReachable(grid, W, H, idx, spawnX, spawnY, clearingX, clearingY)){
+    carveTrail(grid, W, H, idx, spawnX, spawnY, clearingX, clearingY);
+  }
+
+  // --- villages: small clusters of huts around a clearing ---
+  const gInfo = {grid, W, H, idx};
+  function pickVillageCenter(rng, avoid, minDist){
+    for(let attempt=0; attempt<60; attempt++){
+      const ax = 6 + Math.floor(rng()*(W-12));
+      const ay = 6 + Math.floor(rng()*(H-12));
+      let waterNearby=false, mtnCount=0, total=0;
+      for(let dy=-2; dy<=2; dy++) for(let dx=-2; dx<=2; dx++){
+        const x=ax+dx, y=ay+dy;
+        if(!inBounds(x,y,W,H)){ waterNearby=true; continue; }
+        const t = grid[idx(x,y)];
+        total++;
+        if(t===T.WATER) waterNearby = true;
+        if(t===T.MOUNTAIN) mtnCount++;
+      }
+      if(waterNearby) continue;
+      if(mtnCount > total*0.3) continue;
+      const farEnough = avoid.every(p => Math.hypot(p.x-ax, p.y-ay) >= minDist);
+      if(!farEnough) continue;
+      return {x:ax, y:ay};
+    }
+    return null;
+  }
+
+  const villageRng = mulberry32((seed ^ 0x51ed270b) >>> 0);
+  const villageNames = ['WILLOWMERE', 'STONEHOLLOW'];
+  const hutOffsets = [[-2,-1],[2,-1],[0,2]];
+  const villages = [];
+  const villageAvoid = [{x:caveX, y:caveY}, {x:spawnX, y:spawnY}];
+  for(let vi=0; vi<2; vi++){
+    let center = pickVillageCenter(villageRng, villageAvoid, 16);
+    if(!center){
+      const fb = findWalkableNear(gInfo, Math.floor(W*(vi ? 0.72 : 0.22)), Math.floor(H*0.28));
+      center = fb || {x: Math.min(W-3, spawnX+10), y: spawnY};
+    }
+    villageAvoid.push(center);
+
+    for(const [ox,oy] of hutOffsets){
+      const hx = center.x+ox, hy = center.y+oy;
+      if(!inBounds(hx,hy,W,H)) continue;
+      if(grid[idx(hx,hy)]===T.WATER) continue;
+      grid[idx(hx,hy)] = T.HOUSE;
+    }
+    // clear a round village square, skipping huts and water
+    for(let dy=-3; dy<=3; dy++) for(let dx=-3; dx<=3; dx++){
+      const x=center.x+dx, y=center.y+dy;
+      if(!inBounds(x,y,W,H)) continue;
+      if(Math.hypot(dx,dy) > 3.4) continue;
+      const t = grid[idx(x,y)];
+      if(t===T.HOUSE || t===T.WATER) continue;
+      grid[idx(x,y)] = T.PATH;
+    }
+    villages.push({ x: center.x, y: center.y, name: villageNames[vi] || ('VILLAGE '+(vi+1)), visited:false });
+  }
+  // guarantee each village is reachable from spawn, same safety net as the cave
+  for(const v of villages){
+    if(!bfsReachable(grid, W, H, idx, spawnX, spawnY, v.x, v.y)){
+      carveTrail(grid, W, H, idx, spawnX, spawnY, v.x, v.y);
+    }
+  }
+
+  return { grid, W, H, seed, caveX, caveY, spawnX, spawnY, idx, villages };
+}
+
+// ============================================================
+// CAVE INTERIOR (hand-authored)
+// ============================================================
+const CAVE_ROWS = [
+  "##############",
+  "#............#",
+  "#..##....##..#",
+  "#..#......#..#",
+  "#....CC......#",
+  "#....CC......#",
+  "#............#",
+  "#............#",
+  "#......E.....#",
+  "##############",
+];
+const CAVE_W = 14, CAVE_H = 10;
+const CT = { WALL:0, FLOOR:1, CRYSTAL:2, EXIT:3 };
+function caveTileAt(x,y){
+  if(x<0||y<0||x>=CAVE_W||y>=CAVE_H) return CT.WALL;
+  const ch = CAVE_ROWS[y][x];
+  if(ch==='#') return CT.WALL;
+  if(ch==='C') return CT.CRYSTAL;
+  if(ch==='E') return CT.EXIT;
+  return CT.FLOOR;
+}
+function caveBlocking(id){ return id===CT.WALL; }
+// spawn just north of the exit tile so the player never starts on a trigger tile
+const caveSpawn = { x: 7, y: 7 };
+
+// ============================================================
+// PIXEL-ART SPRITES  (row-strings; '.' = transparent)
+// ============================================================
+function spr(rows){ return rows; }
+
+const PAL = {
+  grassA: {'1':'#5fae52','2':'#4c9143'},
+  flower: {'1':'#5fae52','2':'#4c9143','3':'#d94f4f','4':'#e8c84a','5':'#ffffff'},
+  path:   {'1':'#b08b5a','2':'#9a7548'},
+  bridge: {'1':'#8a5a2b','2':'#6e431d'},
+  water0: {'1':'#2c6fae','2':'#5aa3e0'},
+  water1: {'1':'#2c6fae','2':'#5aa3e0'},
+  forest: {'1':'#2f6b3a','2':'#4f9a5c','3':'#5c3a22'},
+  mountain: {'1':'#e9edf0','2':'#8a8a8a','3':'#63636b'},
+  caveMouth: {'1':'#e9edf0','2':'#8a8a8a','3':'#63636b','D':'#0c0c10'},
+  caveWall: {'1':'#33333d','2':'#22222a','3':'#17171d'},
+  caveFloor:{'1':'#3a3a44','2':'#4a4a58'},
+  caveExit: {'1':'#3a3a44','E':'#ffd76b'},
+  crystal:  {'1':'#3a3a44','2':'#4a4a58','C':'#9fe8f0','c':'#c9a6f0'},
+  house: {'1':'#8a3b2e','2':'#e0c99a','3':'#6b4a2e','D':'#241a12'},
+  chest: {'1':'#6b4423','2':'#8a5a2b','3':'#ffd76b'},
+  swordGround: {'1':'#dfe6ee','2':'#caa15f','3':'#5a3a22'},
+  slime: {'1':'#3a8f4a','2':'#5fd67a','E':'#12261a'},
+};
+
+const TILE_PATTERNS = {
+  grassA: spr([
+    "11111111","11211112","11111111","12111121",
+    "11111112","11121111","11111111","11112111",
+  ]),
+  grassB: spr([
+    "11111111","11112111","12111111","11111121",
+    "11211111","11111112","11121111","11111111",
+  ]),
+  flower: spr([
+    "11111111","11211112","11131111","12111121",
+    "11111112","11141111","11111111","11511111",
+  ]),
+  path: spr([
+    "11111111","11121111","11111111","11111121",
+    "11211111","11111111","11112111","11111111",
+  ]),
+  bridge: spr([
+    "11111111","22222222","11111111","22222222",
+    "11111111","22222222","11111111","22222222",
+  ]),
+  water0: spr([
+    "11111111","11211121","11111111","12111112",
+    "11111111","11121111","11111111","21111112",
+  ]),
+  water1: spr([
+    "11111111","12111112","11111111","11211121",
+    "11111111","11111211","11111111","11211112",
+  ]),
+  forest: spr([
+    "..1111..",".111111.","11111111","11122111",
+    "11111111","11211112",".111111.","..1111..",
+    "...33...","...33...","...33...","........",
+  ]),
+  mountain: spr([
+    "...11...","..1111..",".111111.","11222211",
+    "12222221","12333321","12333321","11222211",
+    ".122221.","..2222..","...22...","........",
+  ]),
+  caveMouth: spr([
+    "...11...","..1111..",".111111.","11222211",
+    "12222221","1222DD21","122DDD21","12DDDD21",
+    ".2DDDD2.","..DDDD..","..DDDD..","........",
+  ]),
+  caveWall: spr([
+    "11111111","11222211","12222221","12333321",
+    "12333321","12222221","11222211","11111111",
+    "11111111","11111111",
+  ]),
+  caveFloor: spr([
+    "11111111","11211112","11111111","12111121",
+    "11111112","11121111","11111111","11112111",
+  ]),
+  caveExit: spr([
+    "11111111","1E1111E1","11111111","11E11E11",
+    "11111111","1E1111E1","11111111","11111111",
+  ]),
+  crystal: spr([
+    "...C....","..CcC...",".CccC...","..CcC...",
+    "...C....","11111111","12111121","11111111",
+    "11121111","11111111",
+  ]),
+  house: spr([
+    "...11...","..1111..",".111111.","11111111",
+    "33333333","32222223","32222223","322DD223",
+    "322DD223","33333333","........","........",
+  ]),
+  chest: spr([
+    "..1111..",".111111.","22222222","23333332",
+    "22222222","22222222",
+  ]),
+  swordGround: spr([
+    "...11...","...11...","...11...","...11...",
+    "..2222..","...33...","...33...","........",
+  ]),
+  slime: spr([
+    "..1111..",".111111.","11E11E11","11222211",
+    "12222221","12222221",".111111.","........",
+  ]),
+};
+
+function drawSprite(pattern, palette, px, py, mirror){
+  const rows = pattern.length, cols = pattern[0].length;
+  for(let r=0;r<rows;r++){
+    const row = pattern[r];
+    for(let c=0;c<cols;c++){
+      const ch = row[c];
+      if(!ch || ch==='.') continue;
+      const color = palette[ch];
+      if(!color) continue;
+      const cx = mirror ? (cols-1-c) : c;
+      ctx.fillStyle = color;
+      ctx.fillRect(px + cx*PX, py + r*PX, PX, PX);
+    }
+  }
+}
+// draw a tile-anchored sprite: bottom of pattern aligns to bottom of the tile cell
+function drawTileSprite(pattern, palette, screenX, screenY){
+  const rows = pattern.length;
+  const py = screenY + TILE - rows*PX;
+  drawSprite(pattern, palette, screenX, py, false);
+  return py; // top y, useful for depth-sort baseline
+}
+// draw a small free-standing item/creature centered at a world-space ground point
+function drawGroundItem(sx, sy, pattern, palette){
+  const rows = pattern.length;
+  const px = sx - 4*PX;
+  const py = sy - rows*PX + PX;
+  drawSprite(pattern, palette, px, py, false);
+}
+
+// ============================================================
+// PLAYER SPRITE (down / up / right; left = mirrored right)
+// ============================================================
+const PLAYER = {
+  down: [
+    spr(["..HHHH..",".HHHHHH.",".HSSSSH.",".SSSSSS.","..SSSS..",".TTTTTT.",".TTTTTT.",".TT..TT.",".PP..PP.",".BB..BB."]),
+    spr(["..HHHH..",".HHHHHH.",".HSSSSH.",".SSSSSS.","..SSSS..",".TTTTTT.",".TTTTTT.","TT....TT","PP....PP","B......B"]),
+  ],
+  up: [
+    spr(["..HHHH..",".HHHHHH.",".HHHHHH.",".HHHHHH.","..HHHH..",".TTTTTT.",".TTTTTT.",".TT..TT.",".PP..PP.",".BB..BB."]),
+    spr(["..HHHH..",".HHHHHH.",".HHHHHH.",".HHHHHH.","..HHHH..",".TTTTTT.",".TTTTTT.","TT....TT","PP....PP","B......B"]),
+  ],
+  right: [
+    spr(["...HHH..","..HHHH..","..HSSH..","..SSSH..","...SSH..","..TTTTT.","..TTTTT.","..TT.TT.","..PP.PP.","..BB.BB."]),
+    spr(["...HHH..","..HHHH..","..HSSH..","..SSSH..","...SSH..","..TTTTT.","..TTTTT.",".TTT.T..",".PPP.P..","..BB.B.."]),
+  ],
+};
+const PLAYER_ROWS = 10;
+const PPAL = { H:'#3b2417', S:'#f4c99b', T:'#3f8f5b', P:'#4a3323', B:'#241f1c' };
+// two villager palettes, reusing the player's walk-cycle shapes
+const NPC_PAL_A = { H:'#5a4632', S:'#e8b98c', T:'#8a4a3d', P:'#332a22', B:'#201a16' }; // rust-robed wanderer
+const NPC_PAL_B = { H:'#cfd2d6', S:'#e3ac86', T:'#3d6bb3', P:'#2a2420', B:'#1c1815' }; // blue-robed elder
+
+// ============================================================
+// STATE
+// ============================================================
+const player = {
+  x: 0, y: 0,           // pixel coords in current map (top-left of hitbox anchor point = feet center)
+  dir: 'down',
+  moving: false,
+  animT: 0,
+  frame: 0,
+  speed: 128,            // px/sec
+  hp: 5, maxHp: 5,
+  hasSword: false,
+  invincibleT: 0,
+  attackCooldown: 0,
+  attackT: 0,
+};
+const HITBOX = { w: 14, h: 10 }; // feet hitbox, centered under sprite
+const NPC_HITBOX = { w: 12, h: 9 };
+
+let inCave = false;
+let camX = 0, camY = 0;
+let transition = { active:false, t:0, dur:0.35, phase:'idle', pending:null }; // pending: fn to run at black-out
+let cooldown = 0; // prevents instant re-trigger after teleport
+let animTime = 0;
+let lastTs = 0;
+
+const keys = { up:false, down:false, left:false, right:false };
+let npcs = []; // up to two wandering villagers, overworld only
+let treasures = [], swords = [], monsters = [];
+const stats = { treasuresFound:0, swordsFound:0, monstersDefeated:0, villagesVisited:0, crystalFound:false };
+
+function placePlayerOverworld(){
+  player.x = world.spawnX*TILE + TILE/2;
+  player.y = world.spawnY*TILE + TILE/2;
+}
+function placePlayerCave(){
+  player.x = caveSpawn.x*TILE + TILE/2;
+  player.y = caveSpawn.y*TILE + TILE/2;
+}
+function placePlayerAtCaveMouth(){
+  // step out onto the clearing just south of the cave entrance, not the
+  // entrance tile itself, so it doesn't instantly re-trigger
+  player.x = world.caveX*TILE + TILE/2;
+  player.y = (world.caveY+1)*TILE + TILE/2;
+}
+
+// find the nearest non-blocking, non-cave tile to (ax,ay), spiraling outward
+function findWalkableNear(w, ax, ay){
+  const {grid, W, H, idx} = w;
+  ax = Math.max(0, Math.min(W-1, ax));
+  ay = Math.max(0, Math.min(H-1, ay));
+  for(let r=0; r<Math.max(W,H); r++){
+    for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
+      const x=ax+dx, y=ay+dy;
+      if(!inBounds(x,y,W,H)) continue;
+      const t = grid[idx(x,y)];
+      if(!isBlocking(t) && t!==T.CAVE) return {x,y};
+    }
+  }
+  return null;
+}
+
+// place up to two villagers on walkable ground, spaced apart from the
+// player's spawn and from each other, deterministically per world seed
+function spawnNPCs(w){
+  const rng = mulberry32((w.seed ^ 0x9e3779b1) >>> 0);
+  const avoid = [{x:w.spawnX, y:w.spawnY}];
+  const palettes = [NPC_PAL_A, NPC_PAL_B];
+  const results = [];
+  for(let n=0; n<2; n++){
+    let placed = null;
+    for(let attempt=0; attempt<40 && !placed; attempt++){
+      const ax = 2 + Math.floor(rng()*(w.W-4));
+      const ay = 2 + Math.floor(rng()*(w.H-4));
+      const spot = findWalkableNear(w, ax, ay);
+      if(!spot) continue;
+      const farEnough = avoid.every(p => Math.hypot(p.x-spot.x, p.y-spot.y) > 5);
+      if(farEnough) placed = spot;
+    }
+    if(!placed) placed = findWalkableNear(w, w.spawnX + (n+1)*4, w.spawnY) || {x:w.spawnX, y:w.spawnY};
+    avoid.push(placed);
+    results.push({
+      x: placed.x*TILE + TILE/2, y: placed.y*TILE + TILE/2,
+      dir: 'down', frame: 0, animT: 0, moving: false,
+      state: 'idle', stateTimer: 0.5 + rng()*1.5,
+      vx: 0, vy: 0,
+      speed: 42 + rng()*20,
+      pal: palettes[n],
+    });
+  }
+  return results;
+}
+
+// find a walkable spot that's reachable from spawn and spaced away from
+// everything already in `avoid` — used for treasures, swords, and monsters
+function pickReachableSpot(w, rng, avoid, minDist){
+  for(let attempt=0; attempt<60; attempt++){
+    const ax = 2 + Math.floor(rng()*(w.W-4));
+    const ay = 2 + Math.floor(rng()*(w.H-4));
+    const spot = findWalkableNear(w, ax, ay);
+    if(!spot) continue;
+    if(avoid && !avoid.every(p => Math.hypot(p.x-spot.x, p.y-spot.y) >= minDist)) continue;
+    if(!bfsReachable(w.grid, w.W, w.H, w.idx, w.spawnX, w.spawnY, spot.x, spot.y)) continue;
+    return spot;
+  }
+  // relax the spacing requirement before giving up entirely
+  for(let attempt=0; attempt<60; attempt++){
+    const ax = 2 + Math.floor(rng()*(w.W-4));
+    const ay = 2 + Math.floor(rng()*(w.H-4));
+    const spot = findWalkableNear(w, ax, ay);
+    if(spot && bfsReachable(w.grid, w.W, w.H, w.idx, w.spawnX, w.spawnY, spot.x, spot.y)) return spot;
+  }
+  return {x:w.spawnX, y:w.spawnY};
+}
+
+// scatter treasures, swords, and monsters across the reachable overworld
+function spawnWorldEntities(w){
+  const rng = mulberry32((w.seed ^ 0x2545f491) >>> 0);
+  const avoid = [{x:w.spawnX, y:w.spawnY}, {x:w.caveX, y:w.caveY}];
+  for(const v of w.villages) avoid.push({x:v.x, y:v.y});
+
+  const newTreasures = [];
+  for(let i=0;i<8;i++){
+    const spot = pickReachableSpot(w, rng, avoid, 3);
+    avoid.push(spot);
+    newTreasures.push({ x: spot.x*TILE+TILE/2, y: spot.y*TILE+TILE/2, collected:false });
+  }
+
+  const newSwords = [];
+  for(let i=0;i<2;i++){
+    const spot = pickReachableSpot(w, rng, avoid, 3);
+    avoid.push(spot);
+    newSwords.push({ x: spot.x*TILE+TILE/2, y: spot.y*TILE+TILE/2, collected:false });
+  }
+
+  const newMonsters = [];
+  for(let i=0;i<6;i++){
+    const spot = pickReachableSpot(w, rng, avoid, 6);
+    avoid.push(spot);
+    newMonsters.push({
+      x: spot.x*TILE+TILE/2, y: spot.y*TILE+TILE/2,
+      dir:'down', frame:0, animT:0, moving:false,
+      state:'idle', stateTimer: 0.5 + rng()*1.5,
+      vx:0, vy:0, speed: 34 + rng()*16,
+      hp:2, maxHp:2, alive:true,
+    });
+  }
+
+  return { treasures:newTreasures, swords:newSwords, monsters:newMonsters };
+}
+
+// ============================================================
+// LEVELS / MISSIONS
+// ============================================================
+const LEVELS = [
+  { title:'AWAKENING', desc: s => 'Find a sword hidden in the wild', done: s => s.swordsFound>=1 },
+  { title:'INTO THE WILD', desc: s => `Collect treasure across the land (${Math.min(s.treasuresFound,3)}/3)`, done: s => s.treasuresFound>=3 },
+  { title:'MONSTER TROUBLE', desc: s => `Defeat monsters threatening the land (${Math.min(s.monstersDefeated,3)}/3)`, done: s => s.monstersDefeated>=3 },
+  { title:'NEIGHBORLY VISITS', desc: s => `Visit both villages (${s.villagesVisited}/2)`, done: s => s.villagesVisited>=2 },
+  { title:'HEART OF THE MOUNTAIN', desc: s => 'Find the crystal hidden in the cave', done: s => s.crystalFound },
+];
+let currentLevel = 0;
+let adventureComplete = false;
+
+function checkLevelProgress(){
+  if(adventureComplete){ updateLevelHUD(); return; }
+  let advanced = false;
+  while(currentLevel < LEVELS.length && LEVELS[currentLevel].done(stats)){
+    currentLevel++;
+    advanced = true;
+    if(currentLevel < LEVELS.length){
+      showToast('LEVEL ' + (currentLevel+1) + ': ' + LEVELS[currentLevel].title);
+    } else {
+      adventureComplete = true;
+      showToast('🏆 ADVENTURE COMPLETE 🏆');
+    }
+  }
+  if(advanced) updateLevelHUD();
+}
+
+function updateLevelHUD(){
+  const titleEl = document.getElementById('levelTitle');
+  const descEl = document.getElementById('levelDesc');
+  if(!titleEl || !descEl) return;
+  if(adventureComplete){
+    titleEl.textContent = 'ADVENTURE COMPLETE';
+    descEl.textContent = 'You have mastered Emberwood!';
+    return;
+  }
+  const lvl = LEVELS[currentLevel];
+  titleEl.textContent = 'LEVEL ' + (currentLevel+1) + ' / ' + LEVELS.length + ': ' + lvl.title;
+  descEl.textContent = lvl.desc(stats);
+}
+
+function newWorld(seed){
+  world = generateWorld(seed);
+  inCave = false;
+  placePlayerOverworld();
+  npcs = spawnNPCs(world);
+  const ents = spawnWorldEntities(world);
+  treasures = ents.treasures;
+  swords = ents.swords;
+  monsters = ents.monsters;
+
+  player.hp = player.maxHp;
+  player.hasSword = false;
+  player.invincibleT = 0;
+  player.attackCooldown = 0;
+  player.attackT = 0;
+
+  stats.treasuresFound = 0;
+  stats.swordsFound = 0;
+  stats.monstersDefeated = 0;
+  stats.villagesVisited = 0;
+  stats.crystalFound = false;
+
+  currentLevel = 0;
+  adventureComplete = false;
+  updateLevelHUD();
+  forceStatusHUD();
+
+  cooldown = 0.6;
+}
+// NOTE: the initial call to newWorld() happens at the bottom of this script,
+// after every function/let/const it depends on (including the status-HUD
+// helpers) has been declared — calling it here would hit a temporal-dead-zone
+// ReferenceError on `lastHeartsStr`/`lastSwordShown`.
+
+
+// ============================================================
+// INPUT
+// ============================================================
+const KEYMAP = {
+  ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down',
+  ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right'
+};
+window.addEventListener('keydown', e=>{
+  const k = KEYMAP[e.code];
+  if(k){ keys[k]=true; e.preventDefault(); }
+  if(e.code==='Space' || e.code==='KeyJ'){
+    if(!e.repeat) performAttack();
+    e.preventDefault();
+  }
+});
+window.addEventListener('keyup', e=>{
+  const k = KEYMAP[e.code];
+  if(k){ keys[k]=false; e.preventDefault(); }
+});
+
+// --- touch detection: show joystick instead of relying on keys ---
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0
+  || (window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+if(isTouchDevice){
+  document.body.classList.add('touch');
+  const hintEl = document.getElementById('hint');
+  if(hintEl) hintEl.textContent = 'Drag the joystick to walk · tap ⚔ to attack';
+}
+
+// --- attack button (touch) ---
+const attackBtn = document.getElementById('attackBtn');
+if(attackBtn){
+  attackBtn.addEventListener('pointerdown', e=>{ performAttack(); e.preventDefault(); });
+}
+
+// --- virtual joystick (pointer events cover touch + mouse) ---
+const joyVec = { x:0, y:0 };
+const joyEl = document.getElementById('joystick');
+const joyKnob = document.getElementById('joyKnob');
+const JOY_RADIUS = 42;
+let joyPointerId = null;
+
+function joyCenter(){
+  const r = joyEl.getBoundingClientRect();
+  return { cx: r.left + r.width/2, cy: r.top + r.height/2 };
+}
+function setKnob(dx, dy){
+  joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+function updateJoy(clientX, clientY){
+  const {cx,cy} = joyCenter();
+  const dx = clientX-cx, dy = clientY-cy;
+  const dist = Math.hypot(dx,dy);
+  const clamped = Math.min(dist, JOY_RADIUS);
+  const ang = Math.atan2(dy,dx);
+  const kx = Math.cos(ang)*clamped, ky = Math.sin(ang)*clamped;
+  setKnob(kx,ky);
+  joyVec.x = kx/JOY_RADIUS; joyVec.y = ky/JOY_RADIUS;
+}
+function endJoy(){
+  joyPointerId = null;
+  joyVec.x = 0; joyVec.y = 0;
+  setKnob(0,0);
+  joyEl.classList.remove('active');
+}
+joyEl.addEventListener('pointerdown', e=>{
+  joyPointerId = e.pointerId;
+  joyEl.classList.add('active');
+  try{ joyEl.setPointerCapture(e.pointerId); }catch(err){}
+  updateJoy(e.clientX, e.clientY);
+  e.preventDefault();
+});
+joyEl.addEventListener('pointermove', e=>{
+  if(joyPointerId===null || e.pointerId!==joyPointerId) return;
+  updateJoy(e.clientX, e.clientY);
+  e.preventDefault();
+});
+joyEl.addEventListener('pointerup', e=>{
+  if(e.pointerId!==joyPointerId) return;
+  endJoy(); e.preventDefault();
+});
+joyEl.addEventListener('pointercancel', e=>{
+  if(e.pointerId!==joyPointerId) return;
+  endJoy(); e.preventDefault();
+});
+
+document.getElementById('regenBtn').addEventListener('click', ()=>{
+  startTransition(()=> newWorld((Date.now()*Math.random())&0xffffffff));
+});
+
+// --- keep the canvas filling the screen ---
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', ()=> setTimeout(resizeCanvas, 60));
+
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer = null;
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> el.classList.remove('show'), 2600);
+}
+
+// ============================================================
+// STATUS HUD (hearts + sword indicator)
+// ============================================================
+let lastHeartsStr = null, lastSwordShown = null;
+function updateStatusHUD(){
+  let s = '';
+  for(let i=0;i<player.maxHp;i++) s += (i<player.hp ? '♥' : '♡');
+  if(s !== lastHeartsStr){
+    lastHeartsStr = s;
+    const el = document.getElementById('hearts');
+    if(el) el.textContent = s;
+  }
+  if(player.hasSword !== lastSwordShown){
+    lastSwordShown = player.hasSword;
+    const el = document.getElementById('swordIcon');
+    if(el) el.style.display = player.hasSword ? 'inline' : 'none';
+  }
+}
+function forceStatusHUD(){
+  lastHeartsStr = null; lastSwordShown = null;
+  updateStatusHUD();
+}
+
+// ============================================================
+// TRANSITION (fade to black, run callback, fade back)
+// ============================================================
+function startTransition(callback){
+  if(transition.active) return;
+  transition.active = true;
+  transition.t = 0;
+  transition.phase = 'out';
+  transition.pending = callback;
+}
+function updateTransition(dt){
+  if(!transition.active) return;
+  transition.t += dt;
+  if(transition.phase==='out' && transition.t>=transition.dur){
+    if(transition.pending) transition.pending();
+    transition.pending = null;
+    transition.phase = 'in';
+    transition.t = 0;
+  } else if(transition.phase==='in' && transition.t>=transition.dur){
+    transition.active = false;
+    transition.phase = 'idle';
+  }
+}
+function transitionAlpha(){
+  if(!transition.active) return 0;
+  const p = Math.min(1, transition.t/transition.dur);
+  return transition.phase==='out' ? p : 1-p;
+}
+
+// ============================================================
+// UPDATE
+// ============================================================
+function currentBlockCheck(px, py){
+  // hitbox corners in world px -> tile coords
+  const hw = HITBOX.w/2, hh = HITBOX.h/2;
+  const corners = [
+    [px-hw, py-hh],[px+hw, py-hh],[px-hw, py+hh],[px+hw, py+hh]
+  ];
+  for(const [cx,cy] of corners){
+    const tx = Math.floor(cx/TILE), ty = Math.floor(cy/TILE);
+    if(inCave){
+      if(tx<0||ty<0||tx>=CAVE_W||ty>=CAVE_H) return true;
+      if(caveBlocking(caveTileAt(tx,ty))) return true;
+    } else {
+      if(tx<0||ty<0||tx>=world.W||ty>=world.H) return true;
+      if(isBlocking(world.grid[world.idx(tx,ty)])) return true;
+    }
+  }
+  return false;
+}
+
+function feetTile(){
+  const tx = Math.floor(player.x/TILE), ty = Math.floor(player.y/TILE);
+  return {tx,ty};
+}
+
+function npcBlocked(px, py){
+  const hw = NPC_HITBOX.w/2, hh = NPC_HITBOX.h/2;
+  const corners = [[px-hw,py-hh],[px+hw,py-hh],[px-hw,py+hh],[px+hw,py+hh]];
+  for(const [cx,cy] of corners){
+    const tx = Math.floor(cx/TILE), ty = Math.floor(cy/TILE);
+    if(!inBounds(tx,ty,world.W,world.H)) return true;
+    const t = world.grid[world.idx(tx,ty)];
+    if(isBlocking(t) || t===T.CAVE) return true;
+  }
+  return false;
+}
+
+const NPC_WALK_DIRS = [[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]];
+function updateNPCs(dt){
+  if(inCave) return; // villagers only roam the overworld
+  for(const npc of npcs){
+    npc.stateTimer -= dt;
+    if(npc.stateTimer <= 0){
+      if(npc.state === 'idle'){
+        const d = NPC_WALK_DIRS[Math.floor(Math.random()*NPC_WALK_DIRS.length)];
+        npc.vx = d[0]; npc.vy = d[1];
+        npc.state = 'walk';
+        npc.stateTimer = 1 + Math.random()*2.5;
+      } else {
+        npc.vx = 0; npc.vy = 0;
+        npc.state = 'idle';
+        npc.stateTimer = 0.8 + Math.random()*2.2;
+      }
+    }
+
+    if(npc.state === 'walk'){
+      const len = Math.hypot(npc.vx, npc.vy) || 1;
+      const ux = npc.vx/len, uy = npc.vy/len;
+      if(Math.abs(ux) > Math.abs(uy)) npc.dir = ux>0 ? 'right' : 'left';
+      else npc.dir = uy>0 ? 'down' : 'up';
+
+      const dist = npc.speed*dt;
+      const nx = npc.x + ux*dist, ny = npc.y + uy*dist;
+      let blockedX = false, blockedY = false;
+      if(!npcBlocked(nx, npc.y)) npc.x = nx; else blockedX = true;
+      if(!npcBlocked(npc.x, ny)) npc.y = ny; else blockedY = true;
+      if(blockedX && blockedY){ npc.state = 'idle'; npc.stateTimer = 0.4 + Math.random()*1.2; }
+
+      npc.moving = true;
+      npc.animT += dt;
+      if(npc.animT > 0.18){ npc.animT = 0; npc.frame = 1-npc.frame; }
+    } else {
+      npc.moving = false; npc.frame = 0; npc.animT = 0;
+    }
+
+    const mapPxW = world.W*TILE, mapPxH = world.H*TILE;
+    npc.x = Math.max(NPC_HITBOX.w, Math.min(mapPxW-NPC_HITBOX.w, npc.x));
+    npc.y = Math.max(NPC_HITBOX.h, Math.min(mapPxH-NPC_HITBOX.h, npc.y));
+  }
+}
+
+// ============================================================
+// MONSTERS (wander passively, chase within aggro range, contact damage)
+// ============================================================
+const MONSTER_AGGRO_RANGE = 90;
+const MONSTER_CONTACT_RANGE = 15;
+
+function updateMonsters(dt){
+  if(inCave) return;
+  const mapPxW = world.W*TILE, mapPxH = world.H*TILE;
+  for(const m of monsters){
+    if(!m.alive) continue;
+    const dToPlayer = Math.hypot(player.x-m.x, player.y-m.y);
+    let ux=0, uy=0, wantMove=false;
+
+    if(dToPlayer < MONSTER_AGGRO_RANGE){
+      ux = (player.x-m.x)/(dToPlayer||1);
+      uy = (player.y-m.y)/(dToPlayer||1);
+      wantMove = true;
+    } else {
+      m.stateTimer -= dt;
+      if(m.stateTimer <= 0){
+        if(m.state === 'idle'){
+          const d = NPC_WALK_DIRS[Math.floor(Math.random()*NPC_WALK_DIRS.length)];
+          m.vx = d[0]; m.vy = d[1];
+          m.state = 'walk';
+          m.stateTimer = 1 + Math.random()*2;
+        } else {
+          m.vx = 0; m.vy = 0;
+          m.state = 'idle';
+          m.stateTimer = 0.6 + Math.random()*2;
+        }
+      }
+      if(m.state === 'walk'){
+        const len = Math.hypot(m.vx, m.vy) || 1;
+        ux = m.vx/len; uy = m.vy/len;
+        wantMove = true;
+      }
+    }
+
+    if(wantMove){
+      if(Math.abs(ux) > Math.abs(uy)) m.dir = ux>0 ? 'right' : 'left';
+      else m.dir = uy>0 ? 'down' : 'up';
+      const dist = m.speed*dt;
+      const nx = m.x+ux*dist, ny = m.y+uy*dist;
+      if(!npcBlocked(nx, m.y)) m.x = nx;
+      if(!npcBlocked(m.x, ny)) m.y = ny;
+      m.moving = true;
+      m.animT += dt;
+      if(m.animT > 0.15){ m.animT = 0; m.frame = 1-m.frame; }
+    } else {
+      m.moving = false; m.frame = 0; m.animT = 0;
+    }
+
+    if(dToPlayer < MONSTER_CONTACT_RANGE && player.invincibleT<=0){
+      player.hp -= 1;
+      player.invincibleT = 1.1;
+      if(player.hp <= 0){
+        player.hp = player.maxHp;
+        placePlayerOverworld();
+        showToast('You were knocked out... waking up back home');
+      } else {
+        showToast('Ouch! -1 heart');
+      }
+    }
+
+    m.x = Math.max(NPC_HITBOX.w, Math.min(mapPxW-NPC_HITBOX.w, m.x));
+    m.y = Math.max(NPC_HITBOX.h, Math.min(mapPxH-NPC_HITBOX.h, m.y));
+  }
+}
+
+// ============================================================
+// COMBAT: player attacks in the direction they're facing
+// ============================================================
+function performAttack(){
+  if(inCave || transition.active) return;
+  if(!player.hasSword){ showToast('You need to find a sword first'); return; }
+  if(player.attackCooldown > 0) return;
+  player.attackCooldown = 0.42;
+  player.attackT = 0.18;
+
+  const reach = 22, hitRadius = 20;
+  let ox=0, oy=0;
+  if(player.dir==='up') oy=-reach;
+  else if(player.dir==='down') oy=reach;
+  else if(player.dir==='left') ox=-reach;
+  else ox=reach;
+  const hx = player.x+ox, hy = player.y+oy;
+
+  for(const m of monsters){
+    if(!m.alive) continue;
+    if(Math.hypot(m.x-hx, m.y-hy) <= hitRadius){
+      m.hp -= 1;
+      if(m.hp <= 0){
+        m.alive = false;
+        stats.monstersDefeated++;
+        showToast('Monster defeated! (' + stats.monstersDefeated + '/3)');
+        checkLevelProgress();
+      }
+    }
+  }
+}
+
+// ============================================================
+// TREASURE / SWORD PICKUPS + VILLAGE VISITS
+// ============================================================
+function updateItemPickups(){
+  if(inCave) return;
+  const pickupRadius = 16;
+  for(const t of treasures){
+    if(t.collected) continue;
+    if(Math.hypot(player.x-t.x, player.y-t.y) < pickupRadius){
+      t.collected = true;
+      stats.treasuresFound++;
+      showToast('✦ Found treasure! (' + stats.treasuresFound + '/8)');
+      checkLevelProgress();
+    }
+  }
+  for(const s of swords){
+    if(s.collected) continue;
+    if(Math.hypot(player.x-s.x, player.y-s.y) < pickupRadius){
+      s.collected = true;
+      stats.swordsFound++;
+      player.hasSword = true;
+      showToast('⚔ You picked up a sword!');
+      checkLevelProgress();
+    }
+  }
+}
+
+function updateVillageVisits(){
+  if(inCave) return;
+  for(const v of world.villages){
+    if(v.visited) continue;
+    const dx = (player.x/TILE)-v.x, dy = (player.y/TILE)-v.y;
+    if(Math.hypot(dx,dy) < 4){
+      v.visited = true;
+      stats.villagesVisited++;
+      showToast('🏘 Welcome to ' + v.name + '!');
+      checkLevelProgress();
+    }
+  }
+}
+
+function update(dt){
+  animTime += dt;
+  updateTransition(dt);
+  if(cooldown>0) cooldown -= dt;
+
+  if(transition.active){ return; } // freeze gameplay during fade
+
+  updateNPCs(dt);
+  updateMonsters(dt);
+  if(player.attackCooldown>0) player.attackCooldown -= dt;
+  if(player.attackT>0) player.attackT -= dt;
+  if(player.invincibleT>0) player.invincibleT -= dt;
+
+  let vx=0, vy=0;
+  if(keys.up) vy -= 1;
+  if(keys.down) vy += 1;
+  if(keys.left) vx -= 1;
+  if(keys.right) vx += 1;
+  const joyMag = Math.hypot(joyVec.x, joyVec.y);
+  if(joyMag > 0.15){ vx += joyVec.x; vy += joyVec.y; }
+  const moving = (Math.hypot(vx,vy) > 0.001);
+
+  if(moving){
+    const len = Math.hypot(vx,vy);
+    vx/=len; vy/=len;
+    if(Math.abs(vx) > Math.abs(vy)) player.dir = vx>0 ? 'right' : 'left';
+    else player.dir = vy>0 ? 'down' : 'up';
+
+    const dist = player.speed*dt;
+    const nx = player.x + vx*dist;
+    const ny = player.y + vy*dist;
+    if(!currentBlockCheck(nx, player.y)) player.x = nx;
+    if(!currentBlockCheck(player.x, ny)) player.y = ny;
+
+    player.animT += dt;
+    if(player.animT > 0.16){ player.animT = 0; player.frame = 1-player.frame; }
+  } else {
+    player.frame = 0;
+    player.animT = 0;
+  }
+  player.moving = moving;
+
+  // clamp to map bounds
+  const mapPxW = (inCave?CAVE_W:world.W)*TILE;
+  const mapPxH = (inCave?CAVE_H:world.H)*TILE;
+  player.x = Math.max(HITBOX.w, Math.min(mapPxW-HITBOX.w, player.x));
+  player.y = Math.max(HITBOX.h, Math.min(mapPxH-HITBOX.h, player.y));
+
+  // camera follow, clamped
+  const vw = VIEW_W, vh = VIEW_H;
+  camX = Math.max(0, Math.min(mapPxW - vw, player.x - vw/2));
+  camY = Math.max(0, Math.min(mapPxH - vh, player.y - vh/2));
+  if(mapPxW < vw) camX = (mapPxW-vw)/2;
+  if(mapPxH < vh) camY = (mapPxH-vh)/2;
+
+  // location + triggers
+  const {tx,ty} = feetTile();
+  if(!inCave){
+    if(inBounds(tx,ty,world.W,world.H)){
+      const t = world.grid[world.idx(tx,ty)];
+      setLocation(locNames[t] || 'MEADOW', locColors[t] || '#7ec27a');
+      if(t===T.CAVE && cooldown<=0){
+        startTransition(()=>{ inCave = true; placePlayerCave(); cooldown=1.0; });
+      }
+    }
+    updateItemPickups();
+    updateVillageVisits();
+  } else {
+    if(inBounds(tx,ty,CAVE_W,CAVE_H)){
+      const ct = caveTileAt(tx,ty);
+      if(ct===CT.EXIT){
+        setLocation('CAVE EXIT', '#ffd76b');
+        if(cooldown<=0){
+          startTransition(()=>{ inCave=false; placePlayerAtCaveMouth(); cooldown=1.0; });
+        }
+      } else if(ct===CT.CRYSTAL){
+        setLocation('CRYSTAL HOLLOW', '#c9a6f0');
+        if(!stats.crystalFound){
+          stats.crystalFound = true;
+          showToast('✦ FOUND A SUNSTONE CRYSTAL ✦');
+          checkLevelProgress();
+        }
+      } else {
+        setLocation('CAVE OF EMBERS', '#c9a6f0');
+      }
+    }
+  }
+
+  updateStatusHUD();
+}
+
+let lastLoc = '';
+function setLocation(name, color){
+  if(name===lastLoc) return;
+  lastLoc = name;
+  const el = document.getElementById('locTag');
+  el.textContent = name;
+  el.style.borderColor = color;
+  el.style.color = color;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function worldToScreen(wx, wy){ return [wx-camX, wy-camY]; }
+
+function tilePattern(kind, gx, gy){
+  switch(kind){
+    case T.GRASS: {
+      if(hash01(gx,gy,world.seed+7) < 0.09) return {p:TILE_PATTERNS.flower, pal:PAL.flower};
+      return hash01(gx,gy,world.seed) < 0.5
+        ? {p:TILE_PATTERNS.grassA, pal:PAL.grassA}
+        : {p:TILE_PATTERNS.grassB, pal:PAL.grassA};
+    }
+    case T.PATH: return {p:TILE_PATTERNS.path, pal:PAL.path};
+    case T.BRIDGE: return {p:TILE_PATTERNS.bridge, pal:PAL.bridge};
+    case T.WATER: {
+      const anim = Math.floor(animTime*2 + gx*0.7 + gy*0.5) % 2;
+      return anim===0
+        ? {p:TILE_PATTERNS.water0, pal:PAL.water0}
+        : {p:TILE_PATTERNS.water1, pal:PAL.water1};
+    }
+    default: return {p:TILE_PATTERNS.grassA, pal:PAL.grassA};
+  }
+}
+
+function renderOverworld(){
+  const startCol = Math.floor(camX/TILE), endCol = Math.ceil((camX+VIEW_W)/TILE);
+  const startRow = Math.floor(camY/TILE), endRow = Math.ceil((camY+VIEW_H)/TILE);
+
+  ctx.fillStyle = '#274b32';
+  ctx.fillRect(0,0,VIEW_W,VIEW_H);
+
+  // ground pass: everything except tall obstacles gets ground drawn beneath
+  for(let gy=startRow; gy<endRow; gy++){
+    for(let gx=startCol; gx<endCol; gx++){
+      if(!inBounds(gx,gy,world.W,world.H)) continue;
+      const t = world.grid[world.idx(gx,gy)];
+      const [sx,sy] = worldToScreen(gx*TILE, gy*TILE);
+      if(t===T.FOREST || t===T.MOUNTAIN || t===T.CAVE || t===T.HOUSE){
+        // draw grass beneath tall objects so silhouettes read correctly
+        const g = tilePattern(T.GRASS, gx, gy);
+        drawTileSprite(g.p, g.pal, sx, sy);
+      } else {
+        const g = tilePattern(t, gx, gy);
+        drawTileSprite(g.p, g.pal, sx, sy);
+      }
+    }
+  }
+
+  // tall pass: collect forest/mountain/cave/houses + creatures + player, sort by base Y, draw
+  const tall = [];
+  for(let gy=startRow; gy<endRow; gy++){
+    for(let gx=startCol; gx<endCol; gx++){
+      if(!inBounds(gx,gy,world.W,world.H)) continue;
+      const t = world.grid[world.idx(gx,gy)];
+      if(t===T.FOREST || t===T.MOUNTAIN || t===T.CAVE || t===T.HOUSE){
+        const [sx,sy] = worldToScreen(gx*TILE, gy*TILE);
+        let pattern, pal;
+        if(t===T.FOREST){
+          const sway = Math.sin(animTime*1.4 + gx*1.7 + gy*0.9)*0.6;
+          pattern = TILE_PATTERNS.forest; pal = PAL.forest;
+          tall.push({baseY: gy*TILE+TILE, draw:()=>{
+            const py = sy + TILE - pattern.length*PX;
+            drawSprite(pattern, pal, sx+sway, py, false);
+          }});
+          continue;
+        } else if(t===T.MOUNTAIN){
+          pattern = TILE_PATTERNS.mountain; pal = PAL.mountain;
+        } else if(t===T.CAVE){
+          pattern = TILE_PATTERNS.caveMouth; pal = PAL.caveMouth;
+        } else {
+          pattern = TILE_PATTERNS.house; pal = PAL.house;
+        }
+        tall.push({baseY: gy*TILE+TILE, draw:()=> drawTileSprite(pattern, pal, sx, sy)});
+      }
+    }
+  }
+  addItemsToDrawList(tall);
+  addMonstersToDrawList(tall);
+  addNpcsToDrawList(tall);
+  addPlayerToDrawList(tall);
+  tall.sort((a,b)=> a.baseY - b.baseY);
+  for(const o of tall) o.draw();
+
+  drawAttackSlash();
+  drawMinimap();
+}
+
+function renderCave(){
+  ctx.fillStyle = '#0c0c10';
+  ctx.fillRect(0,0,VIEW_W,VIEW_H);
+
+  const startCol = Math.max(0, Math.floor(camX/TILE)), endCol = Math.min(CAVE_W, Math.ceil((camX+VIEW_W)/TILE));
+  const startRow = Math.max(0, Math.floor(camY/TILE)), endRow = Math.min(CAVE_H, Math.ceil((camY+VIEW_H)/TILE));
+
+  for(let gy=startRow; gy<endRow; gy++){
+    for(let gx=startCol; gx<endCol; gx++){
+      const ct = caveTileAt(gx,gy);
+      const [sx,sy] = worldToScreen(gx*TILE, gy*TILE);
+      if(ct===CT.WALL) continue;
+      if(ct===CT.EXIT) drawTileSprite(TILE_PATTERNS.caveExit, PAL.caveExit, sx, sy);
+      else if(ct===CT.CRYSTAL) drawTileSprite(TILE_PATTERNS.caveFloor, PAL.caveFloor, sx, sy);
+      else drawTileSprite(TILE_PATTERNS.caveFloor, PAL.caveFloor, sx, sy);
+    }
+  }
+
+  const tall = [];
+  for(let gy=startRow; gy<endRow; gy++){
+    for(let gx=startCol; gx<endCol; gx++){
+      const ct = caveTileAt(gx,gy);
+      const [sx,sy] = worldToScreen(gx*TILE, gy*TILE);
+      if(ct===CT.WALL){
+        tall.push({baseY:gy*TILE+TILE, draw:()=> drawTileSprite(TILE_PATTERNS.caveWall, PAL.caveWall, sx, sy)});
+      } else if(ct===CT.CRYSTAL){
+        const glow = 0.65 + Math.sin(animTime*3 + gx)*0.35;
+        tall.push({baseY:gy*TILE+TILE-6, draw:()=>{
+          ctx.save(); ctx.globalAlpha = glow;
+          drawTileSprite(TILE_PATTERNS.crystal, PAL.crystal, sx, sy);
+          ctx.restore();
+        }});
+      }
+    }
+  }
+  addPlayerToDrawList(tall);
+  tall.sort((a,b)=> a.baseY - b.baseY);
+  for(const o of tall) o.draw();
+}
+
+function drawHumanoid(sx, sy, dir, frame, pal){
+  // shadow
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy+4, 9, 4, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  let pattern, mirror=false;
+  if(dir==='down') pattern = PLAYER.down[frame];
+  else if(dir==='up') pattern = PLAYER.up[frame];
+  else if(dir==='right') pattern = PLAYER.right[frame];
+  else { pattern = PLAYER.right[frame]; mirror = true; }
+
+  const px = sx - 4*PX;
+  const py = sy - (PLAYER_ROWS-1)*PX;
+  drawSprite(pattern, pal, px, py, mirror);
+}
+
+function addPlayerToDrawList(list){
+  const [sx,sy] = worldToScreen(player.x, player.y);
+  list.push({ baseY: player.y, draw: ()=> drawHumanoid(sx, sy, player.dir, player.frame, PPAL) });
+}
+
+function addNpcsToDrawList(list){
+  for(const npc of npcs){
+    const [sx,sy] = worldToScreen(npc.x, npc.y);
+    list.push({ baseY: npc.y, draw: ()=> drawHumanoid(sx, sy, npc.dir, npc.frame, npc.pal) });
+  }
+}
+
+function addItemsToDrawList(list){
+  for(const t of treasures){
+    if(t.collected) continue;
+    const [sx,sy] = worldToScreen(t.x, t.y);
+    const bob = Math.sin(animTime*2 + t.x)*1.5;
+    list.push({ baseY: t.y, draw: ()=> drawGroundItem(sx, sy+bob, TILE_PATTERNS.chest, PAL.chest) });
+  }
+  for(const s of swords){
+    if(s.collected) continue;
+    const [sx,sy] = worldToScreen(s.x, s.y);
+    const glint = 0.7 + Math.sin(animTime*3 + s.x)*0.3;
+    list.push({ baseY: s.y, draw: ()=>{
+      ctx.save(); ctx.globalAlpha = glint;
+      drawGroundItem(sx, sy, TILE_PATTERNS.swordGround, PAL.swordGround);
+      ctx.restore();
+    }});
+  }
+}
+
+function addMonstersToDrawList(list){
+  for(const m of monsters){
+    if(!m.alive) continue;
+    const [sx,sy] = worldToScreen(m.x, m.y);
+    list.push({ baseY: m.y, draw: ()=> drawGroundItem(sx, sy, TILE_PATTERNS.slime, PAL.slime) });
+  }
+}
+
+function drawAttackSlash(){
+  if(player.attackT<=0) return;
+  const [sx,sy] = worldToScreen(player.x, player.y);
+  const p = 1 - (player.attackT/0.18);
+  let ox=0, oy=0;
+  if(player.dir==='up') oy=-18;
+  else if(player.dir==='down') oy=18;
+  else if(player.dir==='left') ox=-18;
+  else ox=18;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, 1-p);
+  ctx.strokeStyle = '#eaf2df';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(sx+ox, sy+oy-6, 12, 0, Math.PI*1.4);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawMinimap(){
+  if(inCave) return;
+  const scale = 1.2;
+  const mw = world.W*scale, mh = world.H*scale;
+  const ox = VIEW_W - mw - 12, oy = 12;
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = 'rgba(8,10,6,0.55)';
+  ctx.fillRect(ox-4, oy-4, mw+8, mh+8);
+  ctx.strokeStyle = 'rgba(200,210,190,0.5)';
+  ctx.strokeRect(ox-4, oy-4, mw+8, mh+8);
+
+  const mmColor = {
+    [T.GRASS]:'#3f6b3f', [T.FOREST]:'#254a2c', [T.WATER]:'#2c6fae',
+    [T.MOUNTAIN]:'#8a8a8a', [T.CAVE]:'#c9a6f0', [T.BRIDGE]:'#8a5a2b', [T.PATH]:'#8a5a2b',
+    [T.HOUSE]:'#ffd76b',
+  };
+  for(let gy=0; gy<world.H; gy+=1){
+    for(let gx=0; gx<world.W; gx+=1){
+      const t = world.grid[world.idx(gx,gy)];
+      ctx.fillStyle = mmColor[t] || '#3f6b3f';
+      ctx.fillRect(ox+gx*scale, oy+gy*scale, scale, scale);
+    }
+  }
+  ctx.fillStyle = '#ff5b4d';
+  ctx.fillRect(ox + (player.x/TILE)*scale - 1.5, oy + (player.y/TILE)*scale - 1.5, 3, 3);
+  ctx.restore();
+}
+
+function render(){
+  if(inCave) renderCave(); else renderOverworld();
+
+  const a = transitionAlpha();
+  if(a>0){
+    ctx.fillStyle = `rgba(0,0,0,${a})`;
+    ctx.fillRect(0,0,VIEW_W,VIEW_H);
+  }
+}
+
+// ============================================================
+// LOOP
+// ============================================================
+function frame(ts){
+  if(!lastTs) lastTs = ts;
+  let dt = (ts - lastTs)/1000;
+  lastTs = ts;
+  dt = Math.min(dt, 0.05);
+
+  update(dt);
+  render();
+
+  requestAnimationFrame(frame);
+}
+// now that every function/let/const above is declared, it's safe to
+// generate the first world and kick off the loop
+newWorld(Date.now() & 0xffffffff);
+requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
