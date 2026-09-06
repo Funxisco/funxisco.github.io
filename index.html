@@ -130,6 +130,7 @@
     box-shadow: 0 10px 0 rgba(0,0,0,0.08), 0 14px 30px rgba(27,46,31,0.12);
     border:3px solid var(--canopy);
     transition: transform .25s ease, box-shadow .25s ease;
+    cursor:pointer;
   }
   .card:hover, .card:focus-within{
     transform: translateY(-8px) rotate(-0.6deg);
@@ -292,7 +293,7 @@
   <div class="games">
 
     <!-- Dia de Saltos -->
-    <article class="card day">
+    <article class="card day" data-href="https://funxisco.github.io/saltos/index.html" tabindex="0" role="link" aria-label="Abrir Dia de Saltos">
       <span class="sign">Habitat diurno</span>
       <div class="icon-wrap" aria-hidden="true">
         <!-- Kangaroo -->
@@ -316,7 +317,7 @@
     </article>
 
     <!-- Abismo -->
-    <article class="card night">
+    <article class="card night" data-href="https://funxisco.github.io/abismo/index.html" tabindex="0" role="link" aria-label="Abrir Abismo">
       <span class="sign">Habitat noturno</span>
       <div class="icon-wrap" aria-hidden="true">
         <!-- Owl -->
@@ -343,7 +344,7 @@
     </article>
 
     <!-- Emberwood -->
-    <article class="card day">
+    <article class="card day" data-href="https://funxisco.github.io/emberwood/index.html" tabindex="0" role="link" aria-label="Abrir Emberwood">
       <span class="sign">Habitat de fogo</span>
       <div class="icon-wrap" aria-hidden="true">
         <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
@@ -364,7 +365,7 @@
     </article>
 
     <!-- Emberfall -->
-    <article class="card night">
+    <article class="card night" data-href="https://funxisco.github.io/emberfall/index.html" tabindex="0" role="link" aria-label="Abrir Emberfall">
       <span class="sign">Habitat de sombras</span>
       <div class="icon-wrap" aria-hidden="true">
         <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
@@ -387,7 +388,7 @@
     </article>
 
     <!-- Isoterra -->
-    <article class="card night">
+    <article class="card night" data-href="https://funxisco.github.io/isoterra/index.html" tabindex="0" role="link" aria-label="Abrir Isoterra">
       <span class="sign">Habitat de terra</span>
       <div class="icon-wrap" aria-hidden="true">
         <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
@@ -420,6 +421,26 @@
   </div>
   Feito com <span style="color:#FF6B35;">♥</span> pelo Francisco
 </footer>
+
+<script>
+  document.querySelectorAll('.card').forEach((card) => {
+    const href = card.dataset.href;
+    if (!href) return;
+
+    const navigate = (event) => {
+      if (event.target.closest('a')) return;
+      window.location.href = href;
+    };
+
+    card.addEventListener('click', navigate);
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        window.location.href = href;
+      }
+    });
+  });
+</script>
 
 </body>
 </html>
