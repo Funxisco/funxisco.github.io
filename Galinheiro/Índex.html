@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Fuga do Galinheiro — Trepa e Escapa!</title>
+<style>
+  :root{ --sky-top:#7ec8ff; --sky-bottom:#c9f0ff; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; touch-action:none; }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:#0f1226; font-family:'Trebuchet MS','Segoe UI',sans-serif;
+    overflow:hidden; position:fixed; inset:0;
+  }
+  #wrap{ position:fixed; inset:0; width:100%; height:100%; }
+  #canvasHolder{ position:absolute; inset:0; width:100%; height:100%; }
+  canvas{ display:block; width:100%; height:100%; background:linear-gradient(var(--sky-top),var(--sky-bottom)); }
+
+  #hud{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:center;
+    color:#fff; font-weight:bold; font-size:15px;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) calc(env(safe-area-inset-right,0px) + 14px) 0 calc(env(safe-area-inset-left,0px) + 14px);
+    text-shadow:0 2px 3px rgba(0,0,0,0.5);
+    pointer-events:none; z-index:5;
+  }
+
+  #overlay{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(10,15,35,0.78); color:#fff; text-align:center; padding:20px; gap:14px;
+    backdrop-filter: blur(2px); z-index:20;
+  }
+  #overlay.hidden{ display:none; }
+  #overlay h1{ margin:0; font-size:28px; text-shadow:0 3px 0 #00000055; }
+  #overlay p{ margin:0; font-size:13px; opacity:0.85; max-width:300px; }
+  .pickRow{ display:flex; gap:14px; }
+  .pickBtn{
+    background:#ffffff22; border:3px solid transparent; border-radius:12px; padding:10px 14px;
+    cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; color:#fff; font-weight:bold;
+    pointer-events:auto;
+  }
+  .pickBtn.selected{ border-color:#ffe066; background:#ffffff33; }
+  .pickBtn svg{ width:52px; height:52px; }
+  #startBtn{
+    margin-top:6px; padding:14px 32px; font-size:17px; font-weight:bold; color:#3a2b00;
+    background:linear-gradient(#ffe066,#ffb700); border:none; border-radius:30px;
+    box-shadow:0 5px 0 #b37b00; cursor:pointer; pointer-events:auto;
+  }
+  #startBtn:active{ transform:translateY(3px); box-shadow:0 2px 0 #b37b00; }
+
+  /* ---- Touch controls ---- */
+  #touchControls{
+    position:absolute; inset:0; pointer-events:none; z-index:10;
+  }
+  #joyBase{
+    position:absolute; left:calc(env(safe-area-inset-left,0px) + 26px);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 26px);
+    width:110px; height:110px; border-radius:50%;
+    background:rgba(255,255,255,0.14); border:2px solid rgba(255,255,255,0.35);
+    pointer-events:auto; touch-action:none;
+  }
+  #joyKnob{
+    position:absolute; left:50%; top:50%; width:52px; height:52px; border-radius:50%;
+    background:rgba(255,255,255,0.55); border:2px solid rgba(255,255,255,0.8);
+    transform:translate(-50%,-50%); pointer-events:none;
+  }
+  #jumpBtn{
+    position:absolute; right:calc(env(safe-area-inset-right,0px) + 30px);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 34px);
+    width:88px; height:88px; border-radius:50%; border:none;
+    background:linear-gradient(#ff8a5b,#e8542e); box-shadow:0 5px 0 #a83815;
+    color:#fff; font-size:26px; font-weight:bold; pointer-events:auto;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #jumpBtn:active{ transform:translateY(3px); box-shadow:0 2px 0 #a83815; }
+
+  #kbdHint{
+    position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 14px); left:0; right:0;
+    text-align:center; color:#ffffffaa; font-size:12px; pointer-events:none; z-index:5;
+  }
+  @media (hover:hover) and (pointer:fine){
+    #touchControls{ display:none; }
+  }
+  @media (hover:none), (pointer:coarse){
+    #kbdHint{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="canvasHolder">
+    <canvas id="game"></canvas>
+  </div>
+
+  <div id="hud">
+    <span id="lvl">Nível 1</span>
+    <span id="tries">🥚 Mortes: 0</span>
+  </div>
+
+  <div id="kbdHint">Setas / WASD para mover · Espaço ou Cima para saltar</div>
+
+  <div id="touchControls">
+    <div id="joyBase"><div id="joyKnob"></div></div>
+    <button id="jumpBtn">▲</button>
+  </div>
+
+  <div id="overlay">
+    <h1>🐔 Fuga do Galinheiro 🦆</h1>
+    <p>Sobe do canto inferior esquerdo até à porta dourada no canto superior direito de cada nível. Evita os espinhos e as serras, apanha as pranchas móveis e não caias!</p>
+    <div class="pickRow">
+      <div class="pickBtn selected" id="pickChicken">
+        <svg viewBox="0 0 60 60"><ellipse cx="30" cy="36" rx="18" ry="16" fill="#fff"/><circle cx="42" cy="24" r="10" fill="#fff"/><polygon points="50,24 60,21 50,29" fill="#ff9f1c"/><circle cx="45" cy="21" r="2" fill="#222"/><path d="M38 14 Q42 6 46 14" stroke="#e63946" stroke-width="5" fill="none" stroke-linecap="round"/></svg>
+        Galinha
+      </div>
+      <div class="pickBtn" id="pickDuck">
+        <svg viewBox="0 0 60 60"><ellipse cx="30" cy="36" rx="18" ry="16" fill="#ffd93d"/><circle cx="42" cy="24" r="10" fill="#ffd93d"/><polygon points="50,22 61,20 61,28 50,27" fill="#ff9f1c"/><circle cx="45" cy="21" r="2" fill="#222"/></svg>
+        Pato
+      </div>
+    </div>
+    <button id="startBtn">Começar a Trepar</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const lvlLabel = document.getElementById('lvl');
+  const triesLabel = document.getElementById('tries');
+
+  // ---------- SCREEN / RESOLUTION ----------
+  let VW = 380, VH = 640, DPR = 1;
+  function resizeCanvas(){
+    VW = Math.max(280, window.innerWidth);
+    VH = Math.max(400, window.innerHeight);
+    DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvas.width = Math.round(VW * DPR);
+    canvas.height = Math.round(VH * DPR);
+    canvas.style.width = VW + 'px';
+    canvas.style.height = VH + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    if(level){
+      level = regenerateForSize(levelIndex);
+      player = newPlayer();
+      camY = clampCam(player.y);
+    }
+  }
+
+  // ---------- INPUT ----------
+  const keys = { left:false, right:false, jump:false };
+  let analogX = 0; // -1..1 from joystick
+  window.addEventListener('keydown', e=>{
+    if(['ArrowLeft','a','A'].includes(e.key)) keys.left = true;
+    if(['ArrowRight','d','D'].includes(e.key)) keys.right = true;
+    if(['ArrowUp','w','W',' '].includes(e.key)){ keys.jump = true; e.preventDefault(); }
+  });
+  window.addEventListener('keyup', e=>{
+    if(['ArrowLeft','a','A'].includes(e.key)) keys.left = false;
+    if(['ArrowRight','d','D'].includes(e.key)) keys.right = false;
+    if(['ArrowUp','w','W',' '].includes(e.key)) keys.jump = false;
+  });
+
+  // ---------- JOYSTICK ----------
+  const joyBase = document.getElementById('joyBase');
+  const joyKnob = document.getElementById('joyKnob');
+  let joyTouchId = null, joyCenter = {x:0,y:0};
+  const JOY_RADIUS = 46;
+
+  function joyStart(id, clientX, clientY){
+    joyTouchId = id;
+    const r = joyBase.getBoundingClientRect();
+    joyCenter.x = r.left + r.width/2;
+    joyCenter.y = r.top + r.height/2;
+    joyMove(clientX, clientY);
+  }
+  function joyMove(clientX, clientY){
+    let dx = clientX - joyCenter.x;
+    let dy = clientY - joyCenter.y;
+    const dist = Math.hypot(dx,dy);
+    if(dist > JOY_RADIUS){ dx = dx/dist*JOY_RADIUS; dy = dy/dist*JOY_RADIUS; }
+    joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    analogX = dx / JOY_RADIUS;
+  }
+  function joyEnd(){
+    joyTouchId = null;
+    analogX = 0;
+    joyKnob.style.transform = 'translate(-50%,-50%)';
+  }
+
+  joyBase.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    joyStart(t.identifier, t.clientX, t.clientY);
+  }, {passive:false});
+  joyBase.addEventListener('touchmove', e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches){
+      if(t.identifier === joyTouchId) joyMove(t.clientX, t.clientY);
+    }
+  }, {passive:false});
+  joyBase.addEventListener('touchend', e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches){
+      if(t.identifier === joyTouchId) joyEnd();
+    }
+  }, {passive:false});
+  joyBase.addEventListener('touchcancel', joyEnd);
+
+  // mouse fallback for testing on desktop
+  let mouseJoyActive = false;
+  joyBase.addEventListener('mousedown', e=>{ mouseJoyActive = true; joyStart('mouse', e.clientX, e.clientY); });
+  window.addEventListener('mousemove', e=>{ if(mouseJoyActive) joyMove(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', ()=>{ if(mouseJoyActive){ mouseJoyActive=false; joyEnd(); } });
+
+  // ---------- JUMP BUTTON ----------
+  const jumpBtn = document.getElementById('jumpBtn');
+  function bindHold(el, on, off){
+    el.addEventListener('touchstart', e=>{e.preventDefault(); on();}, {passive:false});
+    el.addEventListener('touchend', e=>{e.preventDefault(); off();}, {passive:false});
+    el.addEventListener('touchcancel', e=>{off();});
+    el.addEventListener('mousedown', on);
+    el.addEventListener('mouseup', off);
+    el.addEventListener('mouseleave', off);
+  }
+  bindHold(jumpBtn, ()=>keys.jump=true, ()=>keys.jump=false);
+
+  // ---------- CHARACTER PICK ----------
+  let character = 'chicken';
+  const pickChicken = document.getElementById('pickChicken');
+  const pickDuck = document.getElementById('pickDuck');
+  pickChicken.addEventListener('click', ()=>{ character='chicken'; pickChicken.classList.add('selected'); pickDuck.classList.remove('selected'); });
+  pickDuck.addEventListener('click', ()=>{ character='duck'; pickDuck.classList.add('selected'); pickChicken.classList.remove('selected'); });
+
+  // ---------- LEVEL GENERATION ----------
+  function rand(min,max){ return Math.random()*(max-min)+min; }
+  function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+
+  // Physics constants (must match the movement physics in update()) so we can
+  // work out exactly how far/high the character can actually jump, and only
+  // ever place the next platform within that reach — guaranteeing a solvable path.
+  const GRAV = 0.62, JUMP_V = -11.6, SPEED = 3.4;
+  // Given a vertical rise (px), returns the max horizontal distance coverable
+  // by a full jump arc landing back at "rise" above the takeoff point.
+  function reachForRise(rise){
+    const disc = JUMP_V*JUMP_V - 2*GRAV*rise;
+    if(disc < 0) return 0; // rise higher than the max possible jump - unreachable
+    const t = (-JUMP_V + Math.sqrt(disc)) / GRAV;
+    return SPEED * t;
+  }
+  const GAP_V = 64; // vertical rise between consecutive spine platforms
+  const SAFE_REACH = reachForRise(GAP_V) * 0.7; // conservative buffer for imperfect input timing
+
+  function buildLevel(levelIndex, w, hgt){
+    const count = 11 + levelIndex;
+    // Fixed margin (start platform + goal platform headroom), independent of
+    // screen/viewport height - the level is a fixed climb, the camera just scrolls
+    // through it. Tying this to hgt caused the final jump to the goal to sometimes
+    // exceed the max possible jump on very tall or very short viewports.
+    const levelHeight = count*GAP_V + 240;
+    const platforms = [];
+    const hazards = [];
+
+    const startW = Math.min(160, w*0.4);
+    platforms.push({x:0,y:levelHeight-40,w:startW,h:40,type:'solid'});
+    const goalY = 70;
+    const goalPlatW = 150;
+
+    // Guided random walk: each new platform's centre is placed within SAFE_REACH
+    // of the previous one, with a gentle drift toward the goal's x position so
+    // the path naturally works its way to the top-right over the course of the level.
+    let prevCenter = startW*0.5;
+    let prevY = levelHeight-40;
+    const goalCenterTarget = w - goalPlatW/2;
+    const spine = [];
+
+    for(let i=0;i<count;i++){
+      const y = levelHeight - 90 - i*GAP_V;
+      if(y < goalY+90) break;
+      const pw = rand(64,92);
+      const half = pw/2;
+      const stepsLeft = Math.max(1, Math.round((prevY - (goalY+90)) / GAP_V));
+      const drift = (goalCenterTarget - prevCenter) / stepsLeft;
+      let offset = clamp(drift + rand(-1,1)*Math.min(SAFE_REACH*0.55,42), -SAFE_REACH, SAFE_REACH);
+      let center = clamp(prevCenter + offset, half+8, w-half-8);
+      // re-clamp in case wall-clamping pushed it further than a safe jump away
+      if(Math.abs(center - prevCenter) > SAFE_REACH){
+        center = clamp(prevCenter + Math.sign(center-prevCenter)*SAFE_REACH, half+8, w-half-8);
+      }
+      const x = center - half;
+      const moving = levelIndex>=2 && Math.random() < 0.32;
+      const plat = {x,y,w:pw,h:14,type: moving?'moving':'solid'};
+      if(moving){
+        plat.baseX = x;
+        // keep the patrol range small enough that the platform's rest position
+        // (which IS within safe reach) is reached twice per cycle
+        plat.range = Math.min(rand(40,70), SAFE_REACH*0.45);
+        plat.speed = rand(0.6,1.2) * (Math.random()<0.5?-1:1);
+        plat.phase = Math.random()*Math.PI*2;
+      }
+      platforms.push(plat);
+      spine.push(plat);
+
+      // hazards: kept narrow and off to one side so a clear landing strip
+      // always remains on the platform itself
+      if(levelIndex>=1 && Math.random() < 0.32 && i>1){
+        const spikeX = clamp(center + (Math.random()<0.5?-1:1)*rand(6,half*0.5), x+6, x+pw-26);
+        hazards.push({type:'spike', x: spikeX, y: y-18, w:20, h:16});
+      }
+      if(levelIndex>=3 && Math.random() < 0.25 && i>2){
+        hazards.push({
+          type:'saw', cx: center, cy: y - 34, r:13,
+          axis: Math.random()<0.5?'x':'y', range: Math.min(rand(30,55), SAFE_REACH*0.4),
+          speed: rand(1.2,2.0)*(Math.random()<0.5?-1:1), phase: Math.random()*Math.PI*2, angle:0,
+          x:0, y:0
+        });
+      }
+      prevCenter = center; prevY = y;
+    }
+
+    // Final connector: guarantee the last spine platform (or the start platform,
+    // if somehow no spine was generated) can actually reach the goal platform.
+    const finalRise = Math.max(1, prevY - (goalY+50));
+    const finalReach = Math.max(40, reachForRise(finalRise) * 0.7);
+    const goalHalf = goalPlatW/2;
+    let goalCenter = clamp(prevCenter + clamp(goalCenterTarget - prevCenter, -finalReach, finalReach), goalHalf+8, w-goalHalf-8);
+    platforms.push({x:goalCenter-goalHalf, y:goalY+50, w:goalPlatW, h:26, type:'solid'});
+
+    const start = {x:40, y:levelHeight-40-40};
+    const goal = {x:goalCenter-30, y:goalY, w:60, h:56};
+    return { platforms, hazards, levelHeight, start, goal, levelWidth:w };
+  }
+
+  function regenerateForSize(i){ return buildLevel(i, VW, VH); }
+
+  // ---------- GAME STATE ----------
+  let level=null, levelIndex = 0, deaths = 0;
+  let player, camY = 0, gameState='menu', frame=0, winTimer=0, h=640;
+
+  function newPlayer(){
+    return { x: level.start.x, y: level.start.y, w:28, h:28, vx:0, vy:0, onGround:false, facing:1, wing:0, ridingDx:0 };
+  }
+  function loadLevel(i){
+    levelIndex = i;
+    h = VH;
+    level = buildLevel(i, VW, VH);
+    player = newPlayer();
+    camY = clampCam(player.y);
+    lvlLabel.textContent = 'Nível ' + (i+1);
+  }
+  function clampCam(py){
+    const target = py - VH*0.62;
+    return Math.max(0, Math.min(Math.max(0,level.levelHeight - VH), target));
+  }
+  function respawn(){
+    deaths++;
+    triesLabel.textContent = '🥚 Mortes: ' + deaths;
+    player = newPlayer();
+    camY = clampCam(player.y);
+  }
+
+  // ---------- PHYSICS ----------
+  // GRAV / JUMP_V / SPEED are defined once, up in the level-generation section,
+  // so the platform placement math and the actual movement always agree.
+  const MAXFALL = 13;
+
+  function update(){
+    frame++;
+    level.platforms.forEach(p=>{
+      if(p.type==='moving'){
+        p.prevX = p.x;
+        p.x = p.baseX + Math.sin(frame*0.02*p.speed + p.phase) * p.range;
+      }
+    });
+    level.hazards.forEach(hz=>{
+      if(hz.type==='saw'){
+        hz.angle += 0.25;
+        const off = Math.sin(frame*0.03*hz.speed + hz.phase) * hz.range;
+        hz.x = hz.cx + (hz.axis==='x'?off:0);
+        hz.y = hz.cy + (hz.axis==='y'?off:0);
+      }
+    });
+
+    if(gameState!=='playing') return;
+
+    let inputX = 0;
+    if(keys.left) inputX -= 1;
+    if(keys.right) inputX += 1;
+    if(Math.abs(analogX) > 0.12) inputX = analogX;
+    inputX = Math.max(-1, Math.min(1, inputX));
+
+    player.vx = inputX * SPEED;
+    if(inputX < -0.1) player.facing = -1;
+    if(inputX > 0.1) player.facing = 1;
+
+    if(keys.jump && player.onGround){ player.vy = JUMP_V; player.onGround=false; }
+
+    if(player.onGround && player.ridingDx) player.x += player.ridingDx;
+    player.ridingDx = 0;
+
+    player.vy += GRAV;
+    if(player.vy > MAXFALL) player.vy = MAXFALL;
+
+    const prevBottom = player.y + player.h;
+    player.x += player.vx;
+    player.y += player.vy;
+    player.x = Math.max(0, Math.min(level.levelWidth - player.w, player.x));
+
+    player.onGround = false;
+    for(const p of level.platforms){
+      const overlapX = player.x + player.w > p.x && player.x < p.x + p.w;
+      if(!overlapX) continue;
+      const newBottom = player.y + player.h;
+      if(player.vy >= 0 && prevBottom <= p.y + 1 && newBottom >= p.y){
+        player.y = p.y - player.h;
+        player.vy = 0;
+        player.onGround = true;
+        if(p.type==='moving') player.ridingDx = p.x - p.prevX;
+      }
+    }
+
+    for(const hz of level.hazards){
+      let hit=false;
+      if(hz.type==='spike'){
+        hit = player.x+player.w>hz.x && player.x<hz.x+hz.w && player.y+player.h>hz.y && player.y<hz.y+hz.h;
+      } else if(hz.type==='saw'){
+        const dx = (player.x+player.w/2) - hz.x;
+        const dy = (player.y+player.h/2) - hz.y;
+        hit = Math.hypot(dx,dy) < hz.r + 12;
+      }
+      if(hit){ respawn(); return; }
+    }
+
+    if(player.y > level.levelHeight + 60){ respawn(); return; }
+
+    const g = level.goal;
+    if(player.x+player.w>g.x && player.x<g.x+g.w && player.y+player.h>g.y && player.y<g.y+g.h){
+      gameState='won';
+      winTimer = 70;
+    }
+
+    camY = clampCam(player.y);
+    player.wing += 0.3;
+  }
+
+  // ---------- RENDER ----------
+  function drawBackground(){
+    const grad = ctx.createLinearGradient(0,0,0,VH);
+    grad.addColorStop(0,'#8fd3ff');
+    grad.addColorStop(1,'#dff6ff');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,VW,VH);
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    for(let i=0;i<8;i++){
+      const cy = ((i*180 - camY*0.3) % (VH+120) + (VH+120)) % (VH+120) - 60;
+      const cx = (i*137)%VW;
+      ctx.beginPath();
+      ctx.ellipse(cx,cy,26,12,0,0,Math.PI*2);
+      ctx.ellipse(cx+18,cy+4,18,10,0,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+  function drawPlatform(p){
+    const y = p.y - camY;
+    if(y < -30 || y > VH+30) return;
+    ctx.fillStyle = p.type==='moving' ? '#c98a4b' : '#8a5a34';
+    ctx.fillRect(p.x, y, p.w, p.h);
+    ctx.fillStyle = p.type==='moving' ? '#e0a869' : '#a97a4f';
+    ctx.fillRect(p.x, y, p.w, 4);
+  }
+  function drawHazard(hz){
+    if(hz.type==='spike'){
+      const y = hz.y - camY;
+      if(y < -30 || y > VH+30) return;
+      ctx.fillStyle = '#d63031';
+      const teeth = 3, tw = hz.w/teeth;
+      for(let i=0;i<teeth;i++){
+        ctx.beginPath();
+        ctx.moveTo(hz.x+i*tw, y+hz.h);
+        ctx.lineTo(hz.x+i*tw+tw/2, y);
+        ctx.lineTo(hz.x+i*tw+tw, y+hz.h);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if(hz.type==='saw'){
+      const cx = hz.x, cy = hz.y - camY;
+      if(cy < -30 || cy > VH+30) return;
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate(hz.angle);
+      ctx.fillStyle = '#b2bec3';
+      ctx.beginPath(); ctx.arc(0,0,hz.r,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#636e72';
+      for(let i=0;i<8;i++){
+        ctx.save();
+        ctx.rotate(i*Math.PI/4);
+        ctx.beginPath();
+        ctx.moveTo(hz.r-2,-4); ctx.lineTo(hz.r+6,0); ctx.lineTo(hz.r-2,4);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle='#2d3436';
+      ctx.beginPath(); ctx.arc(0,0,4,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
+  function drawGoal(){
+    const g = level.goal;
+    const y = g.y - camY;
+    ctx.fillStyle = '#f6c744';
+    ctx.fillRect(g.x, y, g.w, g.h);
+    ctx.fillStyle = '#a97b12';
+    ctx.fillRect(g.x, y, g.w, 6);
+    ctx.fillStyle = '#fff8e0';
+    ctx.beginPath(); ctx.arc(g.x+g.w-12, y+g.h/2, 4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#7a4a00';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText('SAÍDA', g.x+g.w/2, y-6);
+  }
+  function drawPlayer(){
+    const y = player.y - camY;
+    const x = player.x;
+    ctx.save();
+    ctx.translate(x+player.w/2, y+player.h/2);
+    ctx.scale(player.facing,1);
+    const bob = player.onGround ? Math.sin(player.wing)*1.5 : 0;
+    ctx.translate(0,bob);
+    const bodyColor = character==='chicken' ? '#ffffff' : '#ffd93d';
+    const beakColor = '#ff9f1c';
+    ctx.strokeStyle='#ff9f1c'; ctx.lineWidth=3;
+    const legPhase = player.onGround ? Math.sin(frame*0.35)*5 : 0;
+    ctx.beginPath(); ctx.moveTo(-5,10); ctx.lineTo(-5+legPhase,17); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(5,10); ctx.lineTo(5-legPhase,17); ctx.stroke();
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath(); ctx.ellipse(0,2,13,11,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = character==='chicken' ? '#eeeeee' : '#e6c22e';
+    ctx.beginPath();
+    const wingFlap = Math.sin(player.wing*(player.onGround?2:6))*4;
+    ctx.ellipse(-4,4+wingFlap*0.3,7,5,0.4,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath(); ctx.arc(9,-6,8,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = beakColor;
+    if(character==='chicken'){
+      ctx.beginPath();
+      ctx.moveTo(15,-6); ctx.lineTo(23,-4); ctx.lineTo(15,-2);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#e63946';
+      ctx.beginPath();
+      ctx.moveTo(4,-13); ctx.quadraticCurveTo(8,-20,11,-13);
+      ctx.quadraticCurveTo(14,-19,17,-13);
+      ctx.closePath(); ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(18,-5,7,3.5,0,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.fillStyle='#222';
+    ctx.beginPath(); ctx.arc(11,-8,1.6,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function render(){
+    drawBackground();
+    level.platforms.forEach(drawPlatform);
+    level.hazards.forEach(drawHazard);
+    drawGoal();
+    drawPlayer();
+
+    if(gameState==='won'){
+      ctx.fillStyle='rgba(10,15,35,0.35)';
+      ctx.fillRect(0,0,VW,VH);
+      ctx.fillStyle='#fff';
+      ctx.textAlign='center';
+      ctx.font='bold 28px sans-serif';
+      ctx.fillText('Nível Concluído!', VW/2, VH/2 - 10);
+      ctx.font='16px sans-serif';
+      ctx.fillText('A carregar o próximo nível...', VW/2, VH/2+20);
+    }
+  }
+
+  function loop(){
+    update();
+    render();
+    if(gameState==='won'){
+      winTimer--;
+      if(winTimer<=0){
+        loadLevel(levelIndex+1);
+        gameState='playing';
+      }
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- START ----------
+  document.getElementById('startBtn').addEventListener('click', ()=>{
+    overlay.classList.add('hidden');
+    deaths = 0;
+    triesLabel.textContent = '🥚 Mortes: 0';
+    loadLevel(0);
+    gameState = 'playing';
+  });
+
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', ()=>setTimeout(resizeCanvas,150));
+
+  resizeCanvas();
+  loadLevel(0);
+  gameState='menu';
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
