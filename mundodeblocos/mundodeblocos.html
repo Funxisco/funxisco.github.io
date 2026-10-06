@@ -15,13 +15,27 @@ canvas{display:block;width:100%;height:100%}
 #bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:6px;background:var(--panel);padding:6px;border-radius:6px}
 #bar div{width:36px;height:36px;border:3px solid transparent;box-sizing:border-box;color:#fff;font-size:11px;text-align:right;padding:2px 3px}
 #bar div.on{border-color:#fff}
+#touch{display:none;position:fixed;inset:0;pointer-events:none;touch-action:none;user-select:none;-webkit-user-select:none}
+.touch #touch{display:block}
+.touch #hud .help{display:none}.touch #hud{font-size:11px;padding:5px 8px}
+.touch #bar{left:auto;right:10px;top:calc(10px + env(safe-area-inset-top,0px));bottom:auto;transform:none}
+.touch #bar div{width:30px;height:30px}
+#joy{position:absolute;left:calc(22px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:130px;height:130px;border-radius:50%;background:var(--panel);border:2px solid rgba(255,255,255,.5);pointer-events:auto;touch-action:none}
+#knob{position:absolute;left:35px;top:35px;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.65)}
+#btns{position:absolute;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(2,64px);gap:12px;pointer-events:auto}
+#btns button{width:64px;height:64px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:var(--panel);color:#fff;font-size:24px;touch-action:none;padding:0}
+#btns button:active{background:rgba(255,255,255,.4)}
 #cross{position:fixed;left:50%;top:50%;width:14px;height:14px;margin:-7px;pointer-events:none}
 #cross:before,#cross:after{content:"";position:absolute;background:#fff;mix-blend-mode:difference}
 #cross:before{left:6px;top:0;width:2px;height:14px}#cross:after{top:6px;left:0;height:2px;width:14px}
 </style>
 </head>
 <body>
-<div id="hud"><b>Mundo de Blocos</b><br>Setas: andar e virar<br>Q subir, A descer<br>E escavar, R colocar, 1–6 escolher bloco<br>W olhar para cima, S olhar para baixo<br>Rato: arrasta para olhar à volta, clica para escavar, botão direito coloca<br>Posição: <span id="pos"></span></div>
+<div id="hud"><b>Mundo de Blocos</b><span class="help"><br>Setas</span><span class="help">: andar e virar<br>Q subir, A descer<br>E escavar, R colocar, 1–6 escolher bloco<br>W olhar para cima, S olhar para baixo<br>Rato: arrasta para olhar à volta, clica para escavar, botão direito coloca</span><br>Posição: <span id="pos"></span></div>
+<div id="touch">
+<div id="joy"><div id="knob"></div></div>
+<div id="btns"><button id="bUp">▲</button><button id="bDn">▼</button><button id="bDig">⛏</button><button id="bPut">▣</button></div>
+</div>
 <div id="cross"></div>
 <div id="bar"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -210,6 +224,43 @@ function place(){const t=target();if(!t||!t.prev)return;
 function resize(){renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
 addEventListener("resize",resize);resize();
 
+// touch controls
+const joy={x:0,y:0};
+if("ontouchstart" in window||navigator.maxTouchPoints>0){
+  document.body.classList.add("touch");
+  const J=document.getElementById("joy"),K=document.getElementById("knob");
+  let jid=null;
+  const jset=t=>{
+    const r=J.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+    let dx=t.clientX-cx,dy=t.clientY-cy;const m=Math.hypot(dx,dy),max=r.width/2-10;
+    if(m>max){dx*=max/m;dy*=max/m}
+    joy.x=dx/max;joy.y=dy/max;
+    K.style.transform=`translate(${dx}px,${dy}px)`;
+  };
+  const jend=()=>{jid=null;joy.x=joy.y=0;K.style.transform=""};
+  J.addEventListener("touchstart",e=>{e.preventDefault();const t=e.changedTouches[0];jid=t.identifier;jset(t)},{passive:false});
+  J.addEventListener("touchmove",e=>{e.preventDefault();for(const t of e.changedTouches)if(t.identifier===jid)jset(t)},{passive:false});
+  J.addEventListener("touchend",e=>{for(const t of e.changedTouches)if(t.identifier===jid)jend()});
+  J.addEventListener("touchcancel",jend);
+  const hold=(id,down,up)=>{
+    const b=document.getElementById(id);
+    b.addEventListener("touchstart",e=>{e.preventDefault();down()},{passive:false});
+    const u=e=>{e.preventDefault();up&&up()};
+    b.addEventListener("touchend",u);b.addEventListener("touchcancel",u);
+  };
+  hold("bUp",()=>keys.q=true,()=>keys.q=false);
+  hold("bDn",()=>keys.a=true,()=>keys.a=false);
+  hold("bDig",dig);
+  hold("bPut",place);
+  // drag on the world to look around, tap to dig
+  let lid=null,lx=0,ly=0,mv=0;
+  cv.addEventListener("touchstart",e=>{e.preventDefault();if(lid!==null)return;const t=e.changedTouches[0];lid=t.identifier;lx=t.clientX;ly=t.clientY;mv=0},{passive:false});
+  cv.addEventListener("touchmove",e=>{e.preventDefault();for(const t of e.changedTouches)if(t.identifier===lid){
+    const dx=t.clientX-lx,dy=t.clientY-ly;lx=t.clientX;ly=t.clientY;mv+=Math.abs(dx)+Math.abs(dy);look(dx*1.5,dy*1.5)}},{passive:false});
+  const lend=e=>{for(const t of e.changedTouches)if(t.identifier===lid){if(mv<8)dig();lid=null}};
+  cv.addEventListener("touchend",lend);cv.addEventListener("touchcancel",()=>{lid=null});
+}
+
 updateChunks(pos.x,pos.z,0);
 for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)load(dx,dz);
 updateChunks(pos.x,pos.z,0);
@@ -222,7 +273,8 @@ function loop(now){
   if(keys.arrowright)yaw-=1.8*dt;
   if(keys.w)pitch=Math.min(1.5,pitch+1.4*dt);
   if(keys.s)pitch=Math.max(-1.5,pitch-1.4*dt);
-  const f=(keys.arrowup?1:0)-(keys.arrowdown?1:0),sp=8*dt;
+  yaw-=joy.x*2*dt;
+  const f=Math.max(-1,Math.min(1,(keys.arrowup?1:0)-(keys.arrowdown?1:0)-joy.y)),sp=8*dt;
   pos.x+=-Math.sin(yaw)*f*sp;pos.z+=-Math.cos(yaw)*f*sp;
   if(keys.q)pos.y+=sp;
   if(keys.a)pos.y-=sp;
