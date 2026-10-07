@@ -101,17 +101,32 @@ scene.background=new THREE.Color(0x87ceeb);
 scene.fog=new THREE.Fog(0x87ceeb,35,R*CS-6);
 const cam=new THREE.PerspectiveCamera(70,1,.05,200);
 cam.rotation.order="YXZ";
-const mat=new THREE.MeshBasicMaterial({vertexColors:true});
+const atl=document.createElement("canvas");atl.width=128;atl.height=16;
+{const x=atl.getContext("2d");
+const px=(i,X,Y,c,k)=>{x.fillStyle=`rgb(${c.map(v=>Math.max(0,Math.min(255,v*k))|0)})`;x.fillRect(i*16+X,Y,1,1)};
+const tile=(i,base,amp,fx)=>{for(let Y=0;Y<16;Y++)for(let X=0;X<16;X++){let c=base,k=1+(hash(X+i*37,Y*5+i)-.5)*amp;if(fx){const r=fx(X,Y,k);if(r){c=r.c||base;k=r.k??k}}px(i,X,Y,c,k)}};
+tile(0,[92,173,64],.35,(X,Y,k)=>hash(X*3,Y+9)>.9?{k:k*.75}:null);
+tile(1,[133,94,61],.3,(X,Y,k)=>Y<3+(hash(X,77)>.5?2:0)?{c:[92,173,64],k}:null);
+tile(2,[133,94,61],.35,(X,Y,k)=>hash(X+5,Y*3)>.92?{k:k*.7}:null);
+tile(3,[128,128,133],.25,(X,Y,k)=>hash(X*7,Y+3)>.93?{k:k*.65}:null);
+tile(4,[220,204,140],.14);
+tile(5,[115,82,46],.2,(X,Y,k)=>X%4===0?{k:k*.75}:null);
+tile(6,[160,120,70],.15,(X,Y,k)=>({k:k*(Math.floor(Math.hypot(X-7.5,Y-7.5))%4<2?1.15:.85)}));
+tile(7,[51,128,51],.55,(X,Y,k)=>hash(X*5,Y*11)>.85?{c:[20,60,20],k}:null);}
+const atlas=new THREE.CanvasTexture(atl);atlas.magFilter=atlas.minFilter=THREE.NearestFilter;
+const tileOf=(t,dy)=>t===1?(dy>0?0:dy<0?2:1):t===2?2:t===3?3:t===4?4:t===5?(dy?6:5):7;
+const mat=new THREE.MeshBasicMaterial({map:atlas,vertexColors:true});
 
 function meshChunk(c){
-  const P=[],C=[],I=[];let n=0;const ox=c.cx*CS,oz=c.cz*CS;
+  const P=[],C=[],I=[],U=[];let n=0;const ox=c.cx*CS,oz=c.cz*CS;
   const nb=(x,y,z)=>(x>=0&&z>=0&&x<CS&&z<CS&&y>=0&&y<H)?c.d[li(x,y,z)]:getW(ox+x,y,oz+z);
   for(let y=0;y<H;y++)for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
     const t=c.d[li(x,y,z)];if(!t)continue;
-    const tint=.9+hash(ox+x+y*3,oz+z+y*5)*.2,col=COL[t];
+    const tint=.9+hash(ox+x+y*3,oz+z+y*5)*.2,ft=t;
     for(const[dr,cs,sh]of FACES){
       if(nb(x+dr[0],y+dr[1],z+dr[2]))continue;
-      for(const q of cs){P.push(x+q[0],y+q[1],z+q[2]);const s=sh*tint;C.push(col[0]*s,col[1]*s,col[2]*s)}
+      const ti=tileOf(ft,dr[1]);
+      for(let k=0;k<4;k++){const q=cs[k];P.push(x+q[0],y+q[1],z+q[2]);const s=sh*tint;C.push(s,s,s);U.push((ti+(k>1?1:0))/8+(k>1?-.0006:.0006),k===1||k===2?1:0)}
       I.push(n,n+1,n+2,n,n+2,n+3);n+=4;
     }
   }
@@ -120,6 +135,7 @@ function meshChunk(c){
   const g=new THREE.BufferGeometry();
   g.setAttribute("position",new THREE.Float32BufferAttribute(P,3));
   g.setAttribute("color",new THREE.Float32BufferAttribute(C,3));
+  g.setAttribute("uv",new THREE.Float32BufferAttribute(U,2));
   g.setIndex(I);
   c.mesh=new THREE.Mesh(g,mat);c.mesh.position.set(ox,0,oz);scene.add(c.mesh);
 }
@@ -178,7 +194,13 @@ for(let i=0;i<16;i++){
 // ground animals
 scene.add(new THREE.AmbientLight(0xffffff,.7));
 const sun=new THREE.DirectionalLight(0xffffff,.5);sun.position.set(1,2,.6);scene.add(sun);
-const lm={};const lam=c=>lm[c]||(lm[c]=new THREE.MeshLambertMaterial({color:c}));
+const noiseTex=(cell,lo)=>{const c=document.createElement("canvas");c.width=c.height=16;const x=c.getContext("2d");
+  for(let Y=0;Y<16;Y+=cell)for(let X=0;X<16;X+=cell){const v=lo+hash(X*13+cell,Y*7)*(255-lo)|0;x.fillStyle=`rgb(${v},${v},${v})`;x.fillRect(X,Y,cell,cell)}
+  const t=new THREE.CanvasTexture(c);t.magFilter=t.minFilter=THREE.NearestFilter;return t};
+const fur=noiseTex(2,185),wool=noiseTex(4,170);
+const lm={};const lam=c=>lm[c]||(lm[c]=new THREE.MeshLambertMaterial({color:c,map:c===0xf2f2ec?wool:fur}));
+const shMat=new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.35,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+const SR={ovelha:[.55,.75],lobo:[.4,.7],lama:[.55,.85]};
 const bx=(g,w,h,d,x,y,z,c)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),lam(c));m.position.set(x,y,z);g.add(m)};
 const SPECIES={
   ovelha:{n:6,sp:1.2,leg:[.5,.18,.25,.35,0xd8d0c0],parts:[[.8,.7,1.1,0,.85,0,0xf2f2ec],[.4,.4,.45,0,.95,-.75,0x3a3a3a],[.12,.1,.1,-.15,1.2,-.7,0x3a3a3a],[.12,.1,.1,.15,1.2,-.7,0x3a3a3a]]},
@@ -191,6 +213,8 @@ for(const[k,s]of Object.entries(SPECIES))for(let i=0;i<s.n;i++){
   const[len,w,lx,lz,lc]=s.leg,legs=[];
   [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz],j)=>{
     const p=new THREE.Group();p.position.set(sx*lx,len,sz*lz);bx(p,w,len,w,0,-len/2,0,lc);g.add(p);legs.push({p,s:(j===0||j===3)?1:-1})});
+  const sh=new THREE.Mesh(new THREE.CircleGeometry(1,16),shMat);
+  sh.rotation.x=-Math.PI/2;sh.position.y=.04;sh.scale.set(SR[k][0]*1.3,SR[k][1]*1.3,1);g.add(sh);
   g.visible=false;scene.add(g);
   animals.push({g,legs,sp:s.sp,on:false,h:Math.random()*6.28,tm:0,pause:0,ph:0});
 }
