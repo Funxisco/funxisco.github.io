@@ -175,6 +175,55 @@ for(let i=0;i<16;i++){
   birds.push({g,wings,h:Math.random()*6.28,ph:Math.random()*6.28,y:24+Math.random()*7,sp:4+Math.random()*3,init:false});
 }
 
+// ground animals
+scene.add(new THREE.AmbientLight(0xffffff,.7));
+const sun=new THREE.DirectionalLight(0xffffff,.5);sun.position.set(1,2,.6);scene.add(sun);
+const lm={};const lam=c=>lm[c]||(lm[c]=new THREE.MeshLambertMaterial({color:c}));
+const bx=(g,w,h,d,x,y,z,c)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),lam(c));m.position.set(x,y,z);g.add(m)};
+const SPECIES={
+  ovelha:{n:6,sp:1.2,leg:[.5,.18,.25,.35,0xd8d0c0],parts:[[.8,.7,1.1,0,.85,0,0xf2f2ec],[.4,.4,.45,0,.95,-.75,0x3a3a3a],[.12,.1,.1,-.15,1.2,-.7,0x3a3a3a],[.12,.1,.1,.15,1.2,-.7,0x3a3a3a]]},
+  lobo:{n:4,sp:2.2,leg:[.5,.14,.17,.35,0x6f7278],parts:[[.5,.5,1,0,.75,0,0x8a8d92],[.4,.4,.4,0,.9,-.65,0x8a8d92],[.2,.18,.25,0,.82,-.92,0x4a4c50],[.15,.15,.5,0,.85,.7,0x7a7d82],[.1,.14,.08,-.12,1.15,-.6,0x6f7278],[.1,.14,.08,.12,1.15,-.6,0x6f7278]]},
+  lama:{n:4,sp:1.5,leg:[1.1,.2,.25,.4,0xd8c898],parts:[[.7,.8,1.2,0,1.5,0,0xe8d8b0],[.3,.9,.3,0,2.1,-.55,0xe8d8b0],[.35,.35,.55,0,2.65,-.72,0xefe2bd],[.08,.2,.08,-.1,2.95,-.55,0xe8d8b0],[.08,.2,.08,.1,2.95,-.55,0xe8d8b0],[.2,.25,.2,0,1.7,.65,0xb08a5a]]}
+};
+const animals=[];
+for(const[k,s]of Object.entries(SPECIES))for(let i=0;i<s.n;i++){
+  const g=new THREE.Group();s.parts.forEach(p=>bx(g,...p));
+  const[len,w,lx,lz,lc]=s.leg,legs=[];
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz],j)=>{
+    const p=new THREE.Group();p.position.set(sx*lx,len,sz*lz);bx(p,w,len,w,0,-len/2,0,lc);g.add(p);legs.push({p,s:(j===0||j===3)?1:-1})});
+  g.visible=false;scene.add(g);
+  animals.push({g,legs,sp:s.sp,on:false,h:Math.random()*6.28,tm:0,pause:0,ph:0});
+}
+function groundY(x,z){for(let y=H-1;y>=0;y--)if(getW(Math.floor(x),y,Math.floor(z)))return y+1;return 0}
+const loaded=(x,z)=>chunks.has(ck(Math.floor(x/CS),Math.floor(z/CS)));
+function updateAnimals(dt){
+  for(const a of animals){
+    const p=a.g.position;
+    if(!a.on){
+      const an=Math.random()*6.28,r=10+Math.random()*40,x=pos.x+Math.cos(an)*r,z=pos.z+Math.sin(an)*r;
+      if(!loaded(x,z))continue;
+      const gy=groundY(x,z);
+      if(gy<2||getW(Math.floor(x),gy-1,Math.floor(z))>=5)continue;
+      p.set(x,gy,z);a.on=true;a.g.visible=true;continue;
+    }
+    if(Math.hypot(p.x-pos.x,p.z-pos.z)>80||!loaded(p.x,p.z)){a.on=false;a.g.visible=false;continue}
+    a.tm-=dt;
+    if(a.tm<=0){a.tm=2+Math.random()*4;a.h+=(Math.random()-.5)*2.4;a.pause=Math.random()<.4?1+Math.random()*3:0}
+    let walk=false;
+    if(a.pause>0)a.pause-=dt;
+    else{
+      const nx=p.x-Math.sin(a.h)*a.sp*dt*1.5,nz=p.z-Math.cos(a.h)*a.sp*dt*1.5;
+      let ok=loaded(nx,nz);
+      if(ok){const gy=groundY(nx,nz);ok=gy-p.y<1.2&&p.y-gy<3.5}
+      if(ok){p.x=nx;p.z=nz;walk=true}else{a.h+=1.6+Math.random()*1.5;a.tm=2}
+    }
+    if(loaded(p.x,p.z))p.y+=(groundY(p.x,p.z)-p.y)*Math.min(1,dt*10);
+    a.g.rotation.y=a.h;
+    if(walk)a.ph+=dt*a.sp*5;
+    for(const l of a.legs)l.p.rotation.x=walk?Math.sin(a.ph)*.6*l.s:l.p.rotation.x*.8;
+  }
+}
+
 // player
 let yaw=0,pitch=-.25;
 const pos=new THREE.Vector3(.5,hf(0,0)+4,.5);
@@ -295,6 +344,7 @@ function loop(now){
     const fl=Math.sin(t*9+b.ph)*.7;
     for(const w of b.wings)w.p.rotation.z=w.s*fl;
   }
+  updateAnimals(dt);
   cam.position.copy(pos);cam.rotation.set(pitch,yaw,0);
   const tg=target();
   if(tg){box.visible=true;box.position.set(tg.hit[0]+.5,tg.hit[1]+.5,tg.hit[2]+.5)}else box.visible=false;
