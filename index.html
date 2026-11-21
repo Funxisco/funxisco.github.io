@@ -249,6 +249,63 @@
   footer .paws svg{ width:20px; height:20px; }
   footer .paws svg:nth-child(2){ transform:translateY(6px); }
   footer .paws svg:nth-child(4){ transform:translateY(6px); }
+  .dad-games-link{
+    display:block;
+    width:min(290px, 100%);
+    margin:0 auto 24px;
+    padding:14px 18px;
+    color:#29352f;
+    text-align:left;
+    text-decoration:none;
+    background:
+      repeating-linear-gradient(transparent 0 25px, #6b936117 26px, transparent 27px),
+      #fffdf6;
+    border:1px solid #e0d5bf;
+    box-shadow:0 8px 18px rgba(0,0,0,0.22);
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .dad-games-link:hover, .dad-games-link:focus-visible{
+    transform:translateY(-4px) rotate(-1deg);
+    box-shadow:0 12px 22px rgba(0,0,0,0.3);
+    outline:2px solid var(--sun);
+    outline-offset:3px;
+  }
+  .dad-letter-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding-bottom:8px;
+    color:#81745e;
+    border-bottom:1px solid #d6c9af;
+    font:700 0.65rem/1.4 'Quicksand',sans-serif;
+    letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .dad-letter-stamp{
+    display:grid;
+    width:28px;
+    height:32px;
+    place-items:center;
+    color:#8d5544;
+    border:1px dashed #b88771;
+    font-size:17px;
+  }
+  .dad-letter-title{
+    display:block;
+    margin-top:10px;
+    color:#293f32;
+    font-family:'Baloo 2',sans-serif;
+    font-size:1.35rem;
+    font-weight:700;
+  }
+  .dad-letter-bottom{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    color:#6b7066;
+    font-size:0.82rem;
+  }
+  .dad-letter-arrow{ color:#376b50; font-size:1.2rem; }
 </style>
 </head>
 <body>
@@ -559,6 +616,11 @@
     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="15" r="6"/><circle cx="5" cy="7" r="2.6"/><circle cx="12" cy="4" r="2.6"/><circle cx="19" cy="7" r="2.6"/></svg>
     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="15" r="6"/><circle cx="5" cy="7" r="2.6"/><circle cx="12" cy="4" r="2.6"/><circle cx="19" cy="7" r="2.6"/></svg>
   </div>
+  <a class="dad-games-link" href="jogosdopai.html">
+    <span class="dad-letter-top"><span>Uma carta para ti</span><span class="dad-letter-stamp" aria-hidden="true">✦</span></span>
+    <span class="dad-letter-title">Jogos do Pai</span>
+    <span class="dad-letter-bottom"><span>Abre a coleção de jogos</span><span class="dad-letter-arrow" aria-hidden="true">→</span></span>
+  </a>
   Feito com <span style="color:#FF6B35;">♥</span> pelo Francisco
 </footer>
 

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pogo – Planet of Steps</title>
+<style>
+:root{--bg:#0b0b1a;--fg:#e8e8ff;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b0b1a;--fg:#e8e8ff}}
+:root[data-theme="dark"]{--bg:#0b0b1a;--fg:#e8e8ff}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:"Courier New",monospace}
+canvas{max-width:100%;max-height:calc(100% - 36px);image-rendering:pixelated;touch-action:none;display:block}
+p{margin:6px;font-size:12px;opacity:.7;text-align:center}
+</style></head><body>
+<canvas id="c"></canvas>
+<p>Arrows or Q W A S = hop diagonally · or tap around Pogo · jump off an edge beside a saucer to return to the top</p>
+<script type="application/json" id="levels">
+[
+{"bg":"#00c","base":"#000","sides":["#ccc","#fff"],"c1":"#cc0","c2":"#0c0","hops":1},
+{"bg":"#00c","base":"#cc0","sides":["#ccc","#fff"],"c1":"#0c0","c2":"#0cc","hops":1},
+{"bg":"#000","base":"#0cc","sides":["#088","#0ee"],"c1":"#fff","c2":"#c0c","hops":1},
+{"bg":"#a0a","base":"#000","sides":["#ccc","#fff"],"c1":"#0c0","c2":"#cc0","hops":1},
+{"bg":"#00c","base":"#ccc","sides":["#aa0","#dd0"],"c1":"#0c0","c2":"#00a","hops":2},
+{"bg":"#005","base":"#cc0","sides":["#999","#eee"],"c1":"#0c0","c2":"#000","hops":2},
+{"bg":"#0aa","base":"#ccc","sides":["#cc0","#ee4"],"c1":"#0c0","c2":"#c00","hops":2},
+{"bg":"#000","base":"#c00","sides":["#888","#ddd"],"c1":"#cc0","c2":"#0cc","hops":2},
+{"bg":"#050","base":"#000","sides":["#0a0","#6e6"],"c1":"#ccc","c2":"#c0c","hops":2},
+{"bg":"#c00","base":"#ccc","sides":["#888","#fff"],"c1":"#00c","c2":"#cc0","hops":2},
+{"bg":"#00c","base":"#0cc","sides":["#c0c","#f6f"],"c1":"#cc0","c2":"#000","hops":2},
+{"bg":"#430","base":"#cc0","sides":["#a60","#eb4"],"c1":"#0c0","c2":"#00c","hops":2},
+{"bg":"#a0a","base":"#0cc","sides":["#088","#0ee"],"c1":"#ccc","c2":"#cc0","hops":2},
+{"bg":"#000","base":"#00c","sides":["#99c","#ddf"],"c1":"#0c0","c2":"#c00","hops":2},
+{"bg":"#0aa","base":"#000","sides":["#cc0","#ff6"],"c1":"#c0c","c2":"#fff","hops":2},
+{"bg":"#222","base":"#fff","sides":["#c00","#f66"],"c1":"#cc0","c2":"#0c0","hops":2}
+]
+</script>
+<script>
+const LV=JSON.parse(document.getElementById('levels').textContent);
+const cv=document.getElementById('c'),g=cv.getContext('2d');
+const W=640,H=440,CX=320,TOP=92;cv.width=W;cv.height=H;
+const pos=(r,c)=>[CX+(c-r/2)*64,TOP+r*42];
+const valid=(r,c)=>r>=0&&r<=6&&c>=0&&c<=r;
+const idx=(r,c)=>r*(r+1)/2+c;
+const DIR={ul:[-1,-1],ur:[-1,0],dl:[1,0],dr:[1,1]};
+const SPR={
+p:["..XXXXXX..",".XXXXXXXX.",".XXoXXoXX.",".XXXXXXXX.","..XXXXXX..","...XXXX...","..XXXXXX..",".X.XXXX.X.","...X..X...","..XX..XX.."],
+sn:["..XXX.",".XoXX.","..XXX.","...XX.","..XX..",".XXX..","..XXX.","...XXX",".XXXX."],
+sc:["...XXX....","..X...X...","X.XXXXX.X.",".XXoXoXX..","X.XXXXX.X.","..X.X.X..."]};
+let mode='title',L=0,score=0,hi=0,lives=3,cubes,P,E,SA,tm=0,bonus=0,spT;
+try{hi=+localStorage.getItem('pogoHi')||0}catch(e){}
+
+function newLevel(){cubes=Array.from({length:28},()=>({s:0}));SA=[{r:3,c:-1},{r:3,c:4}];spT={ball:1.5,sc:4,sn:7};resetRound()}
+function resetRound(){E=[];P={type:'p',r:0,c:0,fr:-1,fc:0,p:0,dur:.4,arc:0,fy:0,fall:0,dead:0};mode='play'}
+function hop(e,dr,dc,dur,arc){e.fr=e.r;e.fc=e.c;e.r+=dr;e.c+=dc;e.p=0;e.dur=dur;e.arc=arc==null?22:arc}
+function mk(type){return{type,r:0,c:0,fr:-1,fc:0,p:0,dur:.5,arc:0,w:0,ph:0,dir:Math.random()<.5?-1:1}}
+function save(){if(score>hi){hi=score;try{localStorage.setItem('pogoHi',hi)}catch(e){}}}
+function land(){
+ if(!valid(P.r,P.c)){
+  const s=SA.find(s=>!s.used&&s.r==P.r&&s.c==P.c);
+  if(s){s.used=1;score+=100;hop(P,0,0,1.1,110);P.r=0;P.c=0}else P.fall=.001;
+  return}
+ const q=cubes[idx(P.r,P.c)],h=LV[L].hops;
+ if(q.s<h){q.s++;score+=25;if(cubes.every(x=>x.s>=h)){bonus=1000+L*500;score+=bonus;save();mode='bonus';tm=3;E=[]}}
+}
+function lose(){lives--;save();if(lives<=0){mode='over'}else{resetRound();spT={ball:2,sc:4,sn:6}}}
+function ai(e,k){
+ if(e.type=='ball'){const d=Math.random()<.5?[1,0]:[1,1];hop(e,d[0],d[1],.45*k);e.w=.05}
+ else if(e.type=='sc'){
+  if(e.ph==0&&!valid(e.r,e.c+e.dir))e.dir=-e.dir;
+  const d=e.dir<0?(e.ph?[-1,-1]:[1,0]):(e.ph?[-1,0]:[1,1]);
+  hop(e,d[0],d[1],.4*k);e.ph^=1;e.w=.12}
+ else{
+  let best=null,bd=1e9;const t=pos(P.r,P.c);
+  for(const d of Object.values(DIR)){const r=e.r+d[0],c=e.c+d[1];if(!valid(r,c))continue;
+   const p=pos(r,c),m=Math.hypot(p[0]-t[0],p[1]-t[1]);if(m<bd){bd=m;best=d}}
+  if(best)hop(e,best[0],best[1],.42*k);e.w=.3*k}
+}
+function update(dt){
+ if(mode=='bonus'){tm-=dt;if(tm<=0){if(L==15)mode='win';else{L++;newLevel()}}return}
+ if(mode!='play')return;
+ const k=Math.max(.5,1-L*.03);
+ if(P.dead){P.dead-=dt;if(P.dead<=0)lose();return}
+ if(P.fall){P.fall+=dt;P.fy=P.fall*P.fall*500;if(P.fall>1)lose();return}
+ if(P.p<1){P.p=Math.min(1,P.p+dt/P.dur);if(P.p>=1)land();if(mode!='play')return}
+ const n=t=>E.filter(e=>e.type==t).length;
+ spT.ball-=dt;if(spT.ball<=0&&n('ball')<2){E.push(mk('ball'));spT.ball=3.5*k+Math.random()*2}
+ if(L>=1&&!n('sc')){spT.sc-=dt;if(spT.sc<=0){const e=mk('sc'),r=2+Math.floor(Math.random()*4);e.r=r;e.c=Math.floor(Math.random()*(r+1));e.fr=e.r;e.fc=e.c;e.p=1;e.w=.5;E.push(e);spT.sc=5}}
+ if(L>=3&&!n('sn')){spT.sn-=dt;if(spT.sn<=0){const e=mk('sn');e.w=.6;E.push(e);spT.sn=6}}
+ for(const e of E){if(e.p<1)e.p=Math.min(1,e.p+dt/e.dur);else{e.w-=dt;if(e.w<=0)ai(e,k)}}
+ E=E.filter(e=>!(e.p>=1&&!valid(e.r,e.c)));
+ for(const e of E)if(e.r==P.r&&e.c==P.c&&e.p>=.6&&P.p>=.6){P.dead=1.1;break}
+}
+function vis(e){const a=pos(e.fr,e.fc),b=pos(e.r,e.c),p=e.p;
+ return[a[0]+(b[0]-a[0])*p,a[1]+(b[1]-a[1])*p-Math.sin(Math.PI*p)*e.arc+(e.fy||0)]}
+function cube(x,y,top,l,r){
+ g.fillStyle=l;g.beginPath();g.moveTo(x-32,y);g.lineTo(x-16,y+10);g.lineTo(x-16,y+40);g.lineTo(x-32,y+30);g.fill();
+ g.beginPath();g.moveTo(x+32,y);g.lineTo(x+16,y+10);g.lineTo(x+16,y+40);g.lineTo(x+32,y+30);g.fill();
+ g.fillStyle=r;g.fillRect(x-16,y+8,32,32);
+ g.fillStyle=top;g.beginPath();g.moveTo(x-32,y);g.lineTo(x-16,y-10);g.lineTo(x+16,y-10);g.lineTo(x+32,y);g.lineTo(x+16,y+10);g.lineTo(x-16,y+10);g.lineTo(x-32,y);g.fill();}
+function spr(rows,x,y,col,s){const w=rows[0].length*s;
+ rows.forEach((row,j)=>{for(let i=0;i<row.length;i++){const ch=row[i];if(ch=='.')continue;
+  g.fillStyle=ch=='o'?'#000':col;g.fillRect(Math.round(x-w/2+i*s),Math.round(y-rows.length*s+j*s),s,s)}})}
+function txt(s,x,y,col,sz,al){g.font='bold '+sz+'px "Courier New",monospace';g.textAlign=al||'left';g.fillStyle=col;g.fillText(s,x,y)}
+function draw(){
+ const C=LV[L],fin=C.hops==1?C.c1:C.c2;
+ g.fillStyle=C.bg;g.fillRect(0,0,W,H);
+ for(let r=0;r<7;r++)for(let c=0;c<=r;c++){const s=cubes[idx(r,c)].s,p=pos(r,c);
+  cube(p[0],p[1],s==0?C.base:s==1?C.c1:C.c2,C.sides[0],C.sides[1])}
+ cube(60,128,fin,C.sides[0],C.sides[1]);
+ txt('TARGET',60,190,'#fff',12,'center');
+ for(const s of SA){if(s.used)continue;const p=pos(s.r,s.c),t=performance.now()/200;
+  g.fillStyle='#0cc';g.beginPath();g.ellipse(p[0],p[1]+Math.sin(t)*3,22,9,0,0,7);g.fill();
+  g.fillStyle='#8ff';g.beginPath();g.ellipse(p[0],p[1]-5+Math.sin(t)*3,11,7,0,Math.PI,0);g.fill()}
+ const items=E.map(e=>({e,v:vis(e)}));items.push({e:P,v:vis(P)});items.sort((a,b)=>a.v[1]-b.v[1]);
+ for(const {e,v} of items){const x=v[0],y=v[1]+4;
+  if(e.type=='p'){if(e.dead&&Math.floor(e.dead*10)%2)continue;spr(SPR.p,x,y,'#f0f',3)}
+  else if(e.type=='ball'){g.strokeStyle='#f0f';g.lineWidth=3;g.beginPath();g.arc(x,y-11,10,0,7);g.stroke();g.fillStyle='#fff';g.fillRect(x-5,y-18,4,3)}
+  else if(e.type=='sc')spr(SPR.sc,x,y,'#e22',3);
+  else spr(SPR.sn,x,y,'#e22',3)}
+ if(P.dead){const v=vis(P);g.fillStyle='#c11';g.beginPath();g.roundRect(v[0]+10,v[1]-70,62,40,10);g.fill();txt('#!',v[0]+41,v[1]-42,'#fff',26,'center')}
+ txt(String(score).padStart(5,'0'),10,26,'#cc0',26);txt('Score',10,46,'#cc0',18);txt('Level '+(L+1),10,66,'#0c0',18);
+ txt(String(hi).padStart(5,'0'),W-10,26,'#0c0',26,'right');txt('Hi-Score',W-10,46,'#0c0',18,'right');
+ for(let i=0;i<lives-1;i++)spr(SPR.p,W-30-i*34,86,'#f0f',2);
+ if(mode=='bonus'){g.fillStyle='rgba(0,0,0,.7)';g.fillRect(100,150,440,120);
+  txt('BONUS FOR',W/2,190,'#fff',22,'center');txt('COMPLETED PYRAMID',W/2,218,'#fff',22,'center');txt(String(bonus),W/2,254,'#cc0',30,'center')}
+ if(mode!='play'&&mode!='bonus'){g.fillStyle='rgba(0,0,0,.75)';g.fillRect(80,140,480,170);
+  const t={title:['POGO','Paint every cube on the Planet of Steps','Press a key or tap to start'],over:['GAME OVER','Score '+score,'Press a key or tap to retry'],win:['YOU WIN!','All 16 levels cleared · '+score,'Press a key or tap to play again']}[mode];
+  txt(t[0],W/2,200,'#f0f',44,'center');txt(t[1],W/2,242,'#fff',16,'center');txt(t[2],W/2,280,'#cc0',16,'center')}
+}
+function go(d){
+ if(mode=='title'||mode=='over'||mode=='win'){score=0;lives=3;L=0;newLevel();return}
+ if(mode!='play'||P.p<1||P.fall||P.dead)return;
+ const v=DIR[d];hop(P,v[0],v[1],.28)}
+const KM={ArrowUp:'ur',ArrowLeft:'ul',ArrowDown:'dl',ArrowRight:'dr',KeyW:'ur',KeyQ:'ul',KeyA:'dl',KeyS:'dr'};
+addEventListener('keydown',e=>{if(KM[e.code]||e.code=='Space'||e.code=='Enter'){e.preventDefault();go(KM[e.code]||'dr')}});
+cv.addEventListener('pointerdown',e=>{e.preventDefault();
+ const b=cv.getBoundingClientRect(),x=(e.clientX-b.left)*W/b.width,y=(e.clientY-b.top)*H/b.height,v=vis(P);
+ const up=y<v[1]-10,left=x<v[0];
+ go(up?(left?'ul':'ur'):(left?'dl':'dr'))});
+newLevel();mode='title';
+let last=performance.now();
+function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;try{update(dt);draw()}catch(e){console.error(e)}requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+</script>
+</body></html>

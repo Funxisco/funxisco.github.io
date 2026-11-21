@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QIX</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+:root{--bg:#000;--fg:#fff;--y:#ffe93a;--r:#ff4d4d;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Press Start 2P",ui-monospace,Menlo,monospace;min-height:100%}
+#wrap{max-width:min(560px,calc(70vh * .8333));margin:0 auto;padding:10px 8px 14px}
+#hud{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;font-size:clamp(8px,2.2vw,13px);line-height:1.6;border-bottom:3px solid var(--r);padding-bottom:6px;margin-bottom:6px}
+#logo{font-size:clamp(22px,7vw,40px);letter-spacing:-2px;text-shadow:3px 0 #3b3bff,6px 0 #00e0ff}
+#mid{color:var(--y);text-align:center}
+#right{text-align:right}
+#lives{color:var(--r)}
+canvas{display:block;width:100%;height:auto;background:#000;image-rendering:pixelated;touch-action:none}
+#pad{display:none;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;user-select:none;-webkit-user-select:none}
+#pad button{font:inherit;font-size:12px;padding:16px 0;background:#111;color:var(--y);border:2px solid #444;touch-action:none}
+#pad button:active{background:#333}
+.help{font-size:8px;color:#888;line-height:1.8;margin-top:8px}
+@media (pointer:coarse){#pad{display:grid}.help{display:none}}
+</style></head><body>
+<div id="wrap">
+<div id="hud"><div><div id="logo">QIX</div></div><div id="mid">HI <span id="hi">30000</span><br>CLAIMED <span id="pct">0</span>% 75%</div><div id="right"><span id="score">0</span><br><span id="lives"></span></div></div>
+<canvas id="c" width="600" height="720" aria-label="Qix playfield"></canvas>
+<div id="pad">
+<button data-k="fast">FAST</button><button data-d="U">&#9650;</button><button data-k="slow">SLOW</button>
+<button data-d="L">&#9664;</button><button data-d="D">&#9660;</button><button data-d="R">&#9654;</button>
+</div>
+<div class="help">ARROWS / WASD move. Hold SHIFT or Z to draw a fast stix. Hold SPACE or X to draw a slow stix (double points). Claim 75% to clear the stage. Avoid the Qix, the Sparx and the fuse.</div>
+</div>
+<script>
+const W=100,H=120,C=6,cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const sc=document.createElement('canvas');sc.width=W*C;sc.height=H*C;const sx=sc.getContext('2d');
+const D4=[[1,0],[-1,0],[0,1],[0,-1]],FILL={3:'#e0a020',4:'#00d0d8'};
+let g,pl,trail,qix,sparx,score=0,hi=30000,lives=3,level=1,pct=0,state='title',frame=0,timer=0,tmode=0,idle=0,fuse=-1,pacc=0,dirty=true,dirs=[],hold={fast:0,slow:0};
+const I=(x,y)=>y*W+x;
+const claimed=(x,y)=>{const v=g[I(x,y)];return v!==0&&v!==2};
+function isB(x,y){if(!claimed(x,y))return false;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const a=x+i,b=y+j;if(a<0||b<0||a>=W||b>=H)continue;if(g[I(a,b)]===0)return true}return false}
+function snap(x,y){if(isB(x,y))return[x,y];const seen=new Set([I(x,y)]),q=[[x,y]];while(q.length){const[a,b]=q.shift();for(const[d,e]of D4){const nx=a+d,ny=b+e;if(nx<0||ny<0||nx>=W||ny>=H)continue;const k=I(nx,ny);if(seen.has(k))continue;seen.add(k);if(!claimed(nx,ny))continue;if(isB(nx,ny))return[nx,ny];q.push([nx,ny])}}return[x,y]}
+function initLevel(){g=new Uint8Array(W*H);for(let x=0;x<W;x++){g[x]=1;g[I(x,H-1)]=1}for(let y=0;y<H;y++){g[I(0,y)]=1;g[I(W-1,y)]=1}
+trail=[];fuse=-1;idle=0;pacc=0;pct=0;dirty=true;
+const s=Math.min(1.25,.8+.06*level);
+qix={s,a:{x:W*.5,y:H*.4,vx:.7*s,vy:.5*s},b:{x:W*.5+18,y:H*.4+14,vx:-.5*s,vy:.7*s},hist:[]};
+spawn()}
+function spawn(){const p=snap(W>>1,H-1);pl={x:p[0],y:p[1]};trail=[];fuse=-1;idle=0;pacc=0;sparx=[];const n=level>=3?3:2,t=snap(W>>1,0);for(let i=0;i<n;i++)sparx.push({x:t[0],y:t[1],dx:i%2?-1:1,dy:0})}
+function calc(){let n=0;for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){const v=g[I(x,y)];if(v!==0&&v!==2)n++}pct=n/((W-2)*(H-2))*100}
+function stepP(dx,dy){const nx=pl.x+dx,ny=pl.y+dy;if(nx<0||ny<0||nx>=W||ny>=H)return false;const v=g[I(nx,ny)],k=I(nx,ny);
+if(trail.length){if(v===2)return false;pl.x=nx;pl.y=ny;if(v===0){g[k]=2;trail.push([nx,ny])}else close();return true}
+if(v===0){if(!(hold.slow||hold.fast))return false;tmode=hold.slow?1:0;g[k]=2;trail.push([nx,ny]);pl.x=nx;pl.y=ny;return true}
+if(isB(nx,ny)){pl.x=nx;pl.y=ny;return true}return false}
+function close(){const val=tmode?4:3;let n=trail.length;for(const[c,r]of trail)g[I(c,r)]=val;trail=[];fuse=-1;
+const seen=new Uint8Array(W*H),q=new Int32Array(W*H);let h=0,t=0;
+for(const p of[qix.a,qix.b]){const k=I(p.x|0,p.y|0);if(g[k]===0&&!seen[k]){seen[k]=1;q[t++]=k}}
+while(h<t){const k=q[h++],x=k%W,y=(k/W)|0;for(const[d,e]of D4){const nx=x+d,ny=y+e;if(nx<0||ny<0||nx>=W||ny>=H)continue;const j=I(nx,ny);if(g[j]===0&&!seen[j]){seen[j]=1;q[t++]=j}}}
+for(let k=0;k<W*H;k++)if(g[k]===0&&!seen[k]){g[k]=val;n++}
+for(const[p,o]of[[qix.a,qix.b],[qix.b,qix.a]])if(g[I(p.x|0,p.y|0)]!==0){p.x=o.x;p.y=o.y}
+score+=Math.round(n/((W-2)*(H-2))*10000*(tmode?2:1));if(score>hi)hi=score;
+calc();dirty=true;const s=snap(pl.x,pl.y);pl.x=s[0];pl.y=s[1];
+for(const sp of sparx){const q2=snap(sp.x,sp.y);sp.x=q2[0];sp.y=q2[1]}
+if(pct>=75){state='clear';timer=150;score+=Math.round(1000*level+(pct-75)*100);if(score>hi)hi=score}}
+function die(){if(state!=='play')return;lives--;for(const[c,r]of trail)g[I(c,r)]=0;trail=[];fuse=-1;dirty=true;state='dead';timer=80}
+function mvQ(p){const s=qix.s;if(g[I((p.x+p.vx)|0,p.y|0)]===0)p.x+=p.vx;else p.vx=-p.vx*(.8+Math.random()*.4);
+if(g[I(p.x|0,(p.y+p.vy)|0)]===0)p.y+=p.vy;else p.vy=-p.vy*(.8+Math.random()*.4);
+if(Math.random()<.04){p.vx+=(Math.random()-.5)*.7;p.vy+=(Math.random()-.5)*.7}
+const m=1.2*s;p.vx=Math.max(-m,Math.min(m,p.vx));p.vy=Math.max(-m,Math.min(m,p.vy));
+if(Math.abs(p.vx)<.2)p.vx=p.vx<0?-.25:.25;if(Math.abs(p.vy)<.2)p.vy=p.vy<0?-.25:.25}
+function mvS(s){if(!isB(s.x,s.y)){const q=snap(s.x,s.y);s.x=q[0];s.y=q[1]}
+let c=[];for(const[d,e]of D4){if(d===-s.dx&&e===-s.dy)continue;const x=s.x+d,y=s.y+e;if(x>=0&&y>=0&&x<W&&y<H&&isB(x,y))c.push([d,e])}
+if(!c.length){s.dx=-s.dx;s.dy=-s.dy;if(!s.dx&&!s.dy)s.dx=1;const x=s.x+s.dx,y=s.y+s.dy;if(x>=0&&y>=0&&x<W&&y<H&&isB(x,y)){s.x=x;s.y=y}return}
+let pick=c.find(a=>a[0]===s.dx&&a[1]===s.dy);if(!pick||Math.random()<.12)pick=c[(Math.random()*c.length)|0];
+s.dx=pick[0];s.dy=pick[1];s.x+=pick[0];s.y+=pick[1]}
+function hitS(){for(const s of sparx)if(s.x===pl.x&&s.y===pl.y){die();return}}
+function update(){
+if(state==='dead'){if(--timer<=0){if(lives<=0){state='over'}else{spawn();state='play'}}return}
+if(state==='clear'){if(--timer<=0){level++;initLevel();state='play'}return}
+if(state!=='play')return;frame++;
+const d=dirs[dirs.length-1];
+if(d){const drawing=trail.length>0;pacc+=drawing?(tmode?.3:.6):.6;idle=0;fuse=-1;
+while(pacc>=1){pacc--;if(state!=='play')break;if(d==='L')stepP(-1,0);else if(d==='R')stepP(1,0);else if(d==='U')stepP(0,-1);else stepP(0,1);hitS();if(state!=='play'||state==='clear')break}}
+else{pacc=0;if(trail.length&&++idle>90){if(fuse<0)fuse=0;else if(frame%2===0)fuse++;if(fuse>=trail.length-1)die()}}
+if(state!=='play')return;
+mvQ(qix.a);mvQ(qix.b);if(frame%3===0){qix.hist.push([qix.a.x,qix.a.y,qix.b.x,qix.b.y]);if(qix.hist.length>7)qix.hist.shift()}
+if(trail.length){const a=qix.a,b=qix.b,L=Math.ceil(Math.hypot(a.x-b.x,a.y-b.y))+1;for(let i=0;i<=L;i++){const t=i/L,x=(a.x+(b.x-a.x)*t)|0,y=(a.y+(b.y-a.y)*t)|0;if(x>=0&&y>=0&&x<W&&y<H&&g[I(x,y)]===2){die();return}}}
+if(frame%2===0){for(const s of sparx)mvS(s);hitS()}}
+function drawStatic(){sx.fillStyle='#000';sx.fillRect(0,0,W*C,H*C);
+for(let y=0;y<H;y++)for(let x=0;x<W;x++){const v=g[I(x,y)];if(v===0||v===2)continue;if(v>=3){sx.fillStyle=FILL[v];sx.fillRect(x*C,y*C,C,C)}}
+sx.fillStyle='#fff';
+for(let y=0;y<H;y++)for(let x=0;x<W;x++){const v=g[I(x,y)];if(v===0||v===2)continue;
+for(const[d,e]of D4){const a=x+d,b=y+e;if(a<0||b<0||a>=W||b>=H)continue;if(g[I(a,b)]===0){const px=x*C,py=y*C;if(d===1)sx.fillRect(px+C-2,py,2,C);else if(d===-1)sx.fillRect(px,py,2,C);else if(e===1)sx.fillRect(px,py+C-2,C,2);else sx.fillRect(px,py,C,2)}}}
+sx.strokeStyle='#fff';sx.lineWidth=2;sx.strokeRect(1,1,W*C-2,H*C-2);dirty=false}
+function txt(s,y,col,sz){ctx.fillStyle=col||'#ffe93a';ctx.font=(sz||14)+'px "Press Start 2P",monospace';ctx.textAlign='center';ctx.fillText(s,W*C/2,y)}
+function draw(){if(!g)return;if(dirty)drawStatic();ctx.drawImage(sc,0,0);
+if(trail.length){ctx.fillStyle=tmode?'#00e5ff':'#ffb000';for(const[c,r]of trail)ctx.fillRect(c*C,r*C,C,C);
+if(fuse>=0){ctx.fillStyle='#ff3030';const f=Math.min(fuse,trail.length-1);for(let i=0;i<=f;i++)ctx.fillRect(trail[i][0]*C,trail[i][1]*C,C,C);ctx.fillStyle='#fff';ctx.fillRect(trail[f][0]*C-2,trail[f][1]*C-2,C+4,C+4)}}
+ctx.lineWidth=2;const H2=qix.hist;for(let i=0;i<H2.length;i++){const h=H2[i];ctx.strokeStyle=i>=H2.length-2?'#33dd55':'#4a4aff';ctx.beginPath();ctx.moveTo(h[0]*C,h[1]*C);ctx.lineTo(h[2]*C,h[3]*C);ctx.stroke()}
+if(state!=='dead'||timer%10<5){ctx.strokeStyle='#ff4d4d';ctx.lineWidth=2;const cx=(pl.x+.5)*C,cy=(pl.y+.5)*C;ctx.beginPath();ctx.moveTo(cx,cy-9);ctx.lineTo(cx+7,cy);ctx.lineTo(cx,cy+9);ctx.lineTo(cx-7,cy);ctx.closePath();ctx.stroke();ctx.fillStyle='#fff';ctx.fillRect(cx-2,cy-2,4,4)}
+for(const s of sparx){const cx=(s.x+.5)*C,cy=(s.y+.5)*C;for(let i=0;i<6;i++){ctx.fillStyle=i%2?'#ff4d4d':'#ffe93a';ctx.fillRect(cx+(Math.random()-.5)*14-1,cy+(Math.random()-.5)*14-1,3,3)}}
+if(state==='dead'){const cx=(pl.x+.5)*C,cy=(pl.y+.5)*C,r=(80-timer)*1.2;ctx.strokeStyle='#ffe93a';ctx.lineWidth=2;for(let i=0;i<12;i++){const a=i/12*6.283;ctx.strokeRect(cx+Math.cos(a)*r-2,cy+Math.sin(a)*r-2,4,4)}}
+if(state==='title'){ctx.fillStyle='rgba(0,0,0,.82)';ctx.fillRect(0,0,W*C,H*C);txt('QIX',200,'#fff',64);txt('CLAIM 75% OF THE FIELD',300,'#ffe93a',14);txt('DRAW STIX FROM THE EDGE',340,'#ffe93a',12);txt('AVOID THE QIX AND SPARX',372,'#ffe93a',12);txt('PRESS ENTER OR TAP',470,'#fff',14)}
+if(state==='clear'){txt('STAGE CLEAR',H*C/2,'#ffe93a',24)}
+if(state==='over'){ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(0,0,W*C,H*C);txt('GAME OVER',330,'#ff4d4d',32);txt('PRESS ENTER OR TAP',400,'#fff',14)}
+document.getElementById('score').textContent=score;document.getElementById('hi').textContent=hi;document.getElementById('pct').textContent=Math.floor(pct);document.getElementById('lives').textContent='\u25C6'.repeat(Math.max(0,lives))}
+function start(){if(state==='title'||state==='over'){score=0;lives=3;level=1;initLevel();state='play'}}
+const KD={ArrowLeft:'L',KeyA:'L',ArrowRight:'R',KeyD:'R',ArrowUp:'U',KeyW:'U',ArrowDown:'D',KeyS:'D'};
+addEventListener('keydown',e=>{if(KD[e.code]||e.code==='Space')e.preventDefault();
+if(e.code==='Enter')start();
+if(KD[e.code]){const d=KD[e.code];if(!dirs.includes(d))dirs.push(d)}
+if(e.code==='Space'||e.code==='KeyX')hold.slow=1;if(e.code==='ShiftLeft'||e.code==='ShiftRight'||e.code==='KeyZ')hold.fast=1});
+addEventListener('keyup',e=>{if(KD[e.code]){dirs=dirs.filter(d=>d!==KD[e.code])}
+if(e.code==='Space'||e.code==='KeyX')hold.slow=0;if(e.code==='ShiftLeft'||e.code==='ShiftRight'||e.code==='KeyZ')hold.fast=0});
+addEventListener('blur',()=>{dirs=[];hold.fast=hold.slow=0});
+cv.addEventListener('pointerdown',start);
+document.querySelectorAll('#pad button').forEach(b=>{const d=b.dataset.d,k=b.dataset.k;
+b.addEventListener('pointerdown',e=>{e.preventDefault();start();if(d&&!dirs.includes(d))dirs.push(d);if(k)hold[k]=1});
+const up=()=>{if(d)dirs=dirs.filter(x=>x!==d);if(k)hold[k]=0};b.addEventListener('pointerup',up);b.addEventListener('pointerleave',up);b.addEventListener('pointercancel',up)});
+initLevel();
+let last=performance.now(),acc=0;
+function loop(t){acc+=Math.min(t-last,100);last=t;while(acc>=1000/60){acc-=1000/60;update()}draw();requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+</script></body></html>
