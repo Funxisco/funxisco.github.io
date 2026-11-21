@@ -19,7 +19,14 @@ canvas{display:block;width:100%;height:auto;background:#000;image-rendering:pixe
 #pad button:active{background:#333}
 .help{font-size:8px;color:#888;line-height:1.8;margin-top:8px}
 @media (pointer:coarse){#pad{display:grid}.help{display:none}}
-</style></head><body>
+</style>
+<script async src="https://www.googletagmanager.com/gtm.js?id=GTM-K55VS4TH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+</script>
+</head><body>
 <div id="wrap">
 <div id="hud"><div><div id="logo">QIX</div></div><div id="mid">HI <span id="hi">30000</span><br>CLAIMED <span id="pct">0</span>% 75%</div><div id="right"><span id="score">0</span><br><span id="lives"></span></div></div>
 <canvas id="c" width="600" height="720" aria-label="Qix playfield"></canvas>
