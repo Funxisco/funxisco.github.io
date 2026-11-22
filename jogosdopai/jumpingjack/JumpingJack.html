@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jumping Jack</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+:root{--bg:#1b1b1b;--fg:#ddd;--card:#333;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#e8e8e8;--fg:#222;--card:#fff}}
+:root[data-theme="light"]{--bg:#e8e8e8;--fg:#222;--card:#fff}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Press Start 2P",monospace}
+body{display:flex;flex-direction:column;align-items:center;padding:6px;overflow:hidden}
+canvas{display:block;width:min(calc(100vw - 36px),calc((100vh - 70px)*1.3333));width:min(calc(100vw - 36px),calc((100dvh - 70px)*1.3333));aspect-ratio:4/3;image-rendering:pixelated;border:6px solid #000;background:#c8c8c8;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#pad{display:flex;gap:10px;margin-top:10px}
+#pad button{font:14px "Press Start 2P",monospace;width:86px;height:52px;border:2px solid var(--fg);background:var(--card);color:var(--fg);touch-action:none;user-select:none}
+.hint{font-size:8px;opacity:.7;margin:6px;text-align:center;line-height:1.6}.t{display:none}@media (pointer:coarse){.k{display:none}.t{display:inline}}
+</style><script async src="https://www.googletagmanager.com/gtm.js?id=GTM-K55VS4TH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+</script></head><body>
+<canvas id="c" width="512" height="384"></canvas>
+<div class="hint"><span class="k">ARROWS / A D MOVE · SPACE / ↑ JUMP</span><span class="t">TAP LEFT / RIGHT OF JACK TO MOVE · TAP JACK TO JUMP</span></div>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d');
+const W=512,H=384,M=16,F=480,SP=38,BASE=352,JW=5,JT=20;
+const BG='#c8c8c8',RED='#d41818',MAG='#d800d8',BLU='#0000c8',YEL='#cdbb00',GRN='#00c000';
+const FONT=s=>s+'px "Press Start 2P",monospace';
+const POEM=[
+["A nimble young fellow named Jack","Found ledges that stretched up the stack;","With a hop and a bound","He left the cold ground,","And no gap could hold him back."],
+["Each gap slid along like a door,","So Jack watched the gaps on the floor;","He’d wait for the space,","Then spring into place,","And land with a bump and a roar."],
+["Then aliens swooped from the skies,","With glowing and glittering eyes;","But Jack, never fearing,","Kept leaping and steering,","And dodged them with practised surprise."],
+["The snakes hissed along every shelf,","But Jack just talked to himself:","“Hop over their backs,","Keep out of their tracks!”","Now he’s top of the world, by himself."]];
+const HZ=[[44,24,'#d000d0',0],[44,16,'#00b000',1],[40,24,'#c8c800',0],[24,36,'#0000d0',0],[32,28,'#e00000',1],[32,32,'#00a000',0],[44,32,'#d000d0',0],[36,24,'#0000d0',0]];
+let st='title',lvl=1,score=0,hi=0,lives=6,gaps,haz,jack,timer=0,msg='',best=0,tick=0,tpos=0,done=0;
+const keys={};let jumpLatch=false;
+const mod=(a,n)=>((a%n)+n)%n, LY=i=>BASE-i*SP;
+const nextHaz=l=>l<2?0:Math.min(l,10);
+const gapAt=(i,x)=>gaps[i].find(q=>x-JW-M>=q.x&&x+JW-M<=q.x+q.w);
+const contained=(i,x)=>!!gapAt(i,x);
+const mkGap=(i,w)=>({x:Math.random()*(F-w),w,d:i%2?1:-1,s:.8+(i%3)*.2});
+function addGap(){const c=[];for(let i=1;i<=8;i++)if(gaps[i].length<3)c.push(i);if(!c.length)return;
+ const i=c[Math.random()*c.length|0];let q,k=0;
+ do{q=mkGap(i,30+Math.random()*26);k++}while(i===jack.ledge&&k<30&&Math.abs(q.x+q.w/2+M-jack.x)<q.w/2+40);
+ gaps[i].push(q);}
+function spawnJack(){jack={x:W/2,y:LY(0),vy:0,ledge:0,face:1,stun:0,inv:90,fell:false,t:0};best=0;}
+function initLevel(){
+ gaps=[[]];for(let i=1;i<=8;i++)gaps.push([mkGap(i,34+Math.random()*24)]);
+ haz=[];const lanes=[1,2,3,4,5,6,7,8].sort(()=>Math.random()-.5);
+ for(let k=0;k<nextHaz(lvl);k++){const t=k%8;haz.push({t,lane:lanes[k%8],x:Math.random()*W,v:(Math.random()<.5?-1:1)*(.6+lvl*.04),ph:Math.random()*6});}
+ spawnJack();
+}
+function newGame(){lvl=1;score=0;lives=6;st='play';initLevel();}
+function hit(){const j=jack;if(j.inv>0||j.stun>0||st!=='play')return;j.inv=150;if(j.ledge===0){st='dead';timer=70;}else if(j.ledge>0)j.stun=90;else{j.hs=true;j.vy=Math.max(j.vy,1.5);}}
+function complete(){
+ score+=100*lvl;msg=lvl%5===0?'VERSE COMPLETE - EXTRA LIFE!':'';
+ if(lvl%5===0)lives++;
+ hi=Math.max(hi,score);tpos=0;
+ if(lvl===20){st='won';return;}
+ st='levelup';
+}
+function hbox(h){const [w,ht,,fly]=HZ[h.t];const y=fly?LY(h.lane)-SP/2+Math.sin(h.ph)*5:LY(h.lane);return fly?[h.x,y-ht/2,y+ht/2,w]:[h.x,y-ht,y,w];}
+function update(){
+ tick++;
+ if(st==='levelup'){tpos+=.35;return;}
+ if(st==='dead'){if(--timer<=0){if(--lives<=0){hi=Math.max(hi,score);st='over';}else{spawnJack();st='play';}}return;}
+ if(st!=='play')return;
+ const sp=.3+lvl*.04;
+ for(let i=1;i<=8;i++)for(const q of gaps[i].slice()){q.x+=q.d*q.s*sp;if((q.d>0&&q.x>=F)||(q.d<0&&q.x+q.w<=0)){q.x=q.d>0?-q.w:F;gaps[i].splice(gaps[i].indexOf(q),1);gaps[i%8+1].push(q);}}
+ for(const h of haz){h.x+=h.v;if(h.x>W+20){h.x=-20;h.lane=h.lane%8+1;}if(h.x<-20){h.x=W+20;h.lane=h.lane%8+1;}h.ph+=.08;}
+ const j=jack;if(j.inv>0)j.inv--;
+ let tx=null;for(const v of tp.values())tx=v.x;
+ const tl=tx!==null&&tx<j.x-6,tr=tx!==null&&tx>j.x+6;
+ const L=keys.ArrowLeft||keys.a||keys.A||tl,R=keys.ArrowRight||keys.d||keys.D||tr;
+ const clampX=()=>{if(j.x<M)j.x+=F;else if(j.x>=M+F)j.x-=F;};
+ if(j.ledge>=0){
+  j.t++;
+  if(j.stun>0)j.stun--;
+  else{
+   if(L){j.x-=1.6;j.face=-1;}if(R){j.x+=1.6;j.face=1;}clampX();
+   if(jumpLatch){j.vy=-5.9;j.ledge=-1;j.fell=false;j.thru=-1;j.safe=false;}
+  }
+  jumpLatch=false;
+  if(j.safe&&j.ledge>0&&j.stun<=0&&(L||R)){const q=gapAt(j.ledge,j.x);if(q&&((R&&q.d>0)||(L&&q.d<0)))j.safe=false;}
+  if(j.safe&&!contained(j.ledge,j.x))j.safe=false;
+  if(j.ledge>0&&!j.safe&&contained(j.ledge,j.x)){j.fallFrom=j.ledge;j.ledge=-1;j.vy=0;j.fell=true;}
+ }else{
+  jumpLatch=false;
+  
+  const py=j.y;j.vy+=.38;j.y+=j.vy;
+  if(j.vy<0){
+   for(let i=1;i<=8;i++){const b=LY(i)+2;if(py-JT>=b&&j.y-JT<b){if(!contained(i,j.x)){j.y=b+JT;j.vy=1;j.hs=true;break;}else j.thru=i;}}
+   if(j.y<LY(8)-1){score+=10*lvl*(8-best);complete();return;}
+  }else{for(let i=8;i>=0;i--){const t=LY(i);if(t>=py&&t<=j.y&&(i===0||i===j.thru||!contained(i,j.x))){
+   j.y=t;j.vy=0;j.ledge=i;j.safe=(i===j.thru&&i>0);j.thru=-1;if(j.fell){j.stun=45;if(i===0){st='dead';timer=70;return;}}if(j.hs){j.stun=90;j.hs=false;if(i===0){st='dead';timer=70;return;}}j.fell=false;
+   if(i>best){score+=10*lvl*(i-best);best=i;addGap();}
+   break;}}}
+  if(j.y>LY(0)){j.y=LY(0);j.ledge=0;j.vy=0;}
+ }
+ for(const h of haz){const [hx,y0,y1,w]=hbox(h);if(Math.abs(hx-j.x)<w/2+JW-2&&j.y>y0+2&&j.y-JT<y1-2)hit();}
+}
+const HF=[".######.","########","#oo##oo#","########","##oooo##","########",".######."];
+const HS=["..####..",".######.",".#####o#",".#######",".####oo.",".######.","..####.."];
+function drawJack(x,y,face,mode,s,col){
+ g.save();g.translate(x,y);g.scale(face*s,s);
+ (mode==='walk'?HS:HF).forEach((r,yy)=>{for(let xx=0;xx<8;xx++){const c=r[xx];if(c==='.')continue;g.fillStyle=c==='#'?col:BG;g.fillRect(xx-4,-20+yy,1,1);}});
+ g.fillStyle=col;g.strokeStyle=col;g.lineWidth=1.4;g.fillRect(-1,-13,2,6);
+ const P=(...q)=>{g.beginPath();g.moveTo(q[0],q[1]);for(let k=2;k<q.length;k+=2)g.lineTo(q[k],q[k+1]);g.stroke();};
+ if(mode==='walk'){const a=Math.sin(tick*.4)*4;
+  P(0,-12,-a*.7,-8,-a*.4,-5);P(0,-12,a*.7,-8,a*.4,-5);P(0,-7,a*.6,-3.5,a,0);P(0,-7,-a*.6,-3.5,-a,0);}
+ else if(mode==='jump'){P(0,-12,-6,-17);P(0,-12,6,-17);P(0,-7,-4,0);P(0,-7,4,0);}
+ else if(mode==='stun'){P(0,-12,-4,-6);P(0,-12,4,-6);P(0,-7,-2,-3,-3,0);P(0,-7,2,-3,3,0);
+  g.fillStyle=MAG;const sx=(tick>>3)%2?-7:7;g.fillRect(sx-1,-17,3,1);g.fillRect(sx,-18,1,3);}
+ else{P(0,-12,-5,-6);P(0,-12,5,-6);P(0,-7,-4,0);P(0,-7,4,0);}
+ g.restore();
+}
+function drawHaz(h){
+ const [w,ht,c]=HZ[h.t],[hx,y0,y1]=hbox(h);const dir=h.v>0?1:-1;
+ g.save();g.translate(hx,h.t===4?(y0+y1)/2:y1);g.scale(dir*2,2);g.fillStyle=c;
+ const R=(a,b,cw,ch)=>g.fillRect(a,b,cw,ch);
+ switch(h.t){
+ case 0:R(-11,-12,22,9);g.fillStyle=BG;for(let k=0;k<4;k++)R(-9+k*5,-10,3,3);g.fillStyle=c;R(-8,-3,4,3);R(4,-3,4,3);break;
+ case 1:R(-11,-5,22,3);R(-3,-8,6,3);R(-11,-8,3,3);R(8,-6,3,2);break;
+ case 2:R(-6,-8,12,4);R(3,-12,5,4);R(-6,-4,3,4);R(2,-4,3,4);R(-10,-6,5,2);break;
+ case 3:R(-4,-18,8,2);R(-2,-20,4,2);R(-2,-16,4,3);R(-3,-13,6,7);R(-3,-6,2,6);R(1,-6,2,6);R(-8,-11,5,1);break;
+ case 4:g.rotate(tick*.15);R(-1,-7,2,14);R(-6,-7,6,4);break;
+ case 5:R(-5,-16,10,5);R(-6,-11,12,3);R(-8,-8,2,8);R(6,-8,2,8);R(-1,-8,2,8);break;
+ case 6:R(-10,-10,14,6);R(2,-14,8,10);R(-8,-14,3,4);R(-9,-4,4,4);R(-3,-4,4,4);R(4,-4,4,4);break;
+ case 7:for(let k=-9;k<=7;k+=2)R(k,-6+Math.sin(k*.6+tick*.2)*3,2,3);R(7,-10,4,4);break;
+ }
+ g.restore();
+}
+function box(x,y,w,h,c){g.fillStyle=c;g.fillRect(x,y,w,h);}
+function txt(s,x,y,sz,c,al){g.font=FONT(sz);g.fillStyle=c;g.textAlign=al||'center';g.textBaseline='middle';g.fillText(s,x,y);}
+function drawPlay(){
+ box(0,0,W,H,BG);
+ for(let i=1;i<=8;i++){const y=LY(i);box(M,y,F,2,RED);g.fillStyle=BG;
+  for(const q of gaps[i]){const gx=M+q.x;g.fillRect(gx-1,y-1,q.w+2,4);}}
+ for(const h of haz)drawHaz(h);
+ const j=jack;
+ if(!(j.inv>0&&tick%8<4)&&!(st==='dead'&&tick%10<5)){
+  const mv=keys.ArrowLeft||keys.ArrowRight||keys.a||keys.d||tp.size>0&&Math.abs([...tp.values()].pop().x-j.x)>6;
+  drawJack(j.x,j.y,j.face,(j.stun>0||j.hs)?'stun':j.ledge<0?'jump':mv?'walk':'stand',1,'#000');}
+ for(let k=0;k<lives;k++)drawJack(M+6+k*11,H-14,1,'stand',.55,MAG);
+ txt('HI'+String(hi).padStart(5,'0')+' SC'+String(score).padStart(5,'0'),W-M,H-14,10,MAG,'right');
+}
+function drawCard(){
+ box(0,0,W,H,YEL);box(154,64,204,38,GRN);txt('JUMPING JACK',256,84,10,'#003000');
+ box(77,141,358,38,BG);
+}
+function draw(){
+ if(st==='play'||st==='dead'){drawPlay();if(st==='dead')txt('OUCH!',W/2,H/2,16,RED);return;}
+ if(st==='title'||st==='over'||st==='won'){
+ }
+ drawCard();
+ if(st==='title'){txt('PRESS SPACE TO START',256,160,10,BLU);
+  txt('THE BALLAD OF JUMPING JACK',51,250,10,BLU,'left');txt('Climb the eight ledges. Mind the gaps!',51,276,8,BLU,'left');txt('Aliens, snakes and worse lie ahead...',51,296,8,BLU,'left');}
+ if(st==='levelup'){
+  const nh=nextHaz(lvl+1);txt('NEXT LEVEL - '+nh+' HAZARDS',256,160,10,BLU);
+  txt('THE BALLAD OF JUMPING JACK',51,230,10,BLU,'left');
+  const v=(lvl-1)/5|0,n=(lvl-1)%5+1;
+  for(let k=0;k<n;k++){const s=POEM[v][k];txt(k<n-1?s:s.slice(0,Math.min(s.length,tpos|0)),51,256+k*22,10,BLU,'left');}
+  if(msg)txt(msg,256,H-34,9,'#006000');
+  if(tpos>POEM[v][n-1].length&&tick%60<40)txt('PRESS SPACE',256,H-14,8,BLU);
+ }
+ if(st==='over'){txt('GAME OVER',256,160,10,BLU);txt('SCORE '+score,256,250,12,BLU);txt('HI '+hi,256,280,12,BLU);if(tick%60<40)txt('PRESS SPACE',256,H-30,8,BLU);}
+ if(st==='won'){txt('WELL DONE JACK! SC'+score,256,160,10,BLU);
+  POEM.forEach((v,i)=>v.forEach((s,k)=>txt(s,40,192+(i*5+k)*8.6+i*5,7,BLU,'left')));
+  if(tick%60<40)txt('PRESS SPACE',256,H-12,8,BLU);}
+}
+function action(){
+ if(st==='title'||st==='over'||st==='won')newGame();
+ else if(st==='levelup'){const v=(lvl-1)/5|0,n=(lvl-1)%5+1;if(tpos<=POEM[v][n-1].length)tpos=999;else{lvl++;initLevel();st='play';}}
+ else jumpLatch=true;
+}
+addEventListener('keydown',e=>{
+ if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))e.preventDefault();
+ if(e.key===' '||e.key==='ArrowUp'||e.key==='w'||e.key==='Enter'){if(!e.repeat)action();}else keys[e.key]=true;});
+addEventListener('keyup',e=>{keys[e.key]=false;});
+const tp=new Map();
+function cpos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H};}
+cv.addEventListener('pointerdown',e=>{
+ e.preventDefault();const p=cpos(e);
+ if(st!=='play'&&st!=='dead'){action();return;}
+ if(st!=='play')return;
+ try{cv.setPointerCapture(e.pointerId);}catch(_){}
+ const j=jack;
+ if(Math.abs(p.x-j.x)<=20&&p.y>=j.y-36&&p.y<=j.y+12){jumpLatch=true;tp.set(e.pointerId,{x:j.x});}
+ else tp.set(e.pointerId,{x:p.x});
+});
+cv.addEventListener('pointermove',e=>{if(tp.has(e.pointerId)){const p=cpos(e);tp.get(e.pointerId).x=p.x;}});
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>cv.addEventListener(ev,e=>tp.delete(e.pointerId)));
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+let last=performance.now(),acc=0;
+function loop(n){acc+=Math.min(n-last,100);last=n;while(acc>=16.67){update();acc-=16.67;}draw();requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+</script></body></html>

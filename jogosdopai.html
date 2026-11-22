@@ -124,9 +124,9 @@
 
     .games {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: clamp(20px, 5vw, 48px);
-      max-width: 710px;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: clamp(16px, 4vw, 36px);
+      max-width: 860px;
       margin: 0 auto;
       align-items: start;
     }
@@ -194,6 +194,7 @@
 
     .game-art svg { width: 120px; height: 112px; overflow: visible; }
     .qix .game-art { color: #454b96; }
+    .jumpingjack .game-art { color: #9c3d36; }
 
     .letter h2 {
       margin: 7px 0 7px;
@@ -203,6 +204,7 @@
     }
 
     .qix h2 { color: #383d7c; }
+    .jumpingjack h2 { color: #8c3731; }
 
     .letter p {
       margin: 0 0 20px;
@@ -225,6 +227,7 @@
     }
 
     .qix .play { color: #454b96; }
+    .jumpingjack .play { color: #8c3731; }
     .arrow { font-size: 1.1rem; transition: transform .2s ease; }
     .letter:hover .arrow, .letter:focus-visible .arrow { transform: translateX(4px); }
 
@@ -301,6 +304,21 @@
         </div>
         <h2>Qix</h2>
         <p>Desenha caminhos, conquista território e evita os perigos no campo.</p>
+        <span class="play"><span>Abrir jogo</span><span class="arrow" aria-hidden="true">→</span></span>
+      </a>
+
+      <a class="letter jumpingjack" href="jogosdopai/jumpingjack/JumpingJack.html">
+        <div class="letter-top"><span>Uma nova aventura</span><span class="stamp" aria-hidden="true">✦</span></div>
+        <div class="game-art" aria-hidden="true">
+          <svg viewBox="0 0 120 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="14" y="12" width="92" height="88" rx="3" fill="#f2f0e9" stroke="currentColor" stroke-width="3"/>
+            <path d="M22 84h76M22 69h64M22 54h52M22 39h40" stroke="#969696" stroke-width="5"/>
+            <path d="M27 85v-8h8v8m8-16v-8h8v8m8-16v-8h8v8m8-16v-8h8v8" fill="#d82424" stroke="#751919" stroke-width="2"/>
+            <path d="M28 92h66" stroke="#4b4b4b" stroke-width="2" stroke-dasharray="3 4"/>
+          </svg>
+        </div>
+        <h2>Jumping Jack</h2>
+        <p>Faz o Jack saltar até ao topo</p>
         <span class="play"><span>Abrir jogo</span><span class="arrow" aria-hidden="true">→</span></span>
       </a>
     </nav>
