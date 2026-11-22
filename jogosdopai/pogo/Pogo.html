@@ -8,14 +8,9 @@
 :root[data-theme="dark"]{--bg:#0b0b1a;--fg:#e8e8ff}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--fg);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:"Courier New",monospace}
-canvas{max-width:100%;max-height:calc(100% - 36px);image-rendering:pixelated;touch-action:none;display:block}
+canvas{image-rendering:pixelated;touch-action:none;display:block}
 p{margin:6px;font-size:12px;opacity:.7;text-align:center}
-</style><script async src="https://www.googletagmanager.com/gtm.js?id=GTM-K55VS4TH"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-</script></head><body>
+</style></head><body>
 <canvas id="c"></canvas>
 <p>Arrows or Q W A S = hop diagonally · or tap around Pogo · jump off an edge beside a saucer to return to the top</p>
 <script type="application/json" id="levels">
@@ -23,20 +18,20 @@ p{margin:6px;font-size:12px;opacity:.7;text-align:center}
 {"bg":"#00c","base":"#000","sides":["#ccc","#fff"],"c1":"#cc0","c2":"#0c0","hops":1,"enemies":{"ball":1,"sc":0,"sn":0}},
 {"bg":"#00c","base":"#cc0","sides":["#ccc","#fff"],"c1":"#0c0","c2":"#0cc","hops":1,"enemies":{"ball":2,"sc":0,"sn":0}},
 {"bg":"#000","base":"#0cc","sides":["#088","#0ee"],"c1":"#fff","c2":"#c0c","hops":1,"enemies":{"ball":2,"sc":0,"sn":0}},
-{"bg":"#000","base":"#133","sides":["#088","#0ee"],"c1":"#fff","c2":"#c0c","hops":1,"enemies":{"ball":3,"sc":1,"sn":0}},
-{"bg":"#a0a","base":"#000","sides":["#ccc","#fff"],"c1":"#0c0","c2":"#cc0","hops":1,"enemies":{"ball":2,"sc":1,"sn":1}},
-{"bg":"#00c","base":"#ccc","sides":["#aa0","#dd0"],"c1":"#0c0","c2":"#00a","hops":2,"enemies":{"ball":2,"sc":1,"sn":1}},
-{"bg":"#005","base":"#cc0","sides":["#999","#eee"],"c1":"#0c0","c2":"#000","hops":2,"enemies":{"ball":3,"sc":1,"sn":1}},
-{"bg":"#0aa","base":"#ccc","sides":["#cc0","#ee4"],"c1":"#0c0","c2":"#c00","hops":2,"enemies":{"ball":3,"sc":2,"sn":1}},
-{"bg":"#000","base":"#c00","sides":["#888","#ddd"],"c1":"#cc0","c2":"#0cc","hops":2,"enemies":{"ball":3,"sc":2,"sn":1}},
-{"bg":"#050","base":"#000","sides":["#0a0","#6e6"],"c1":"#ccc","c2":"#c0c","hops":2,"enemies":{"ball":3,"sc":2,"sn":1}},
-{"bg":"#c00","base":"#ccc","sides":["#888","#fff"],"c1":"#00c","c2":"#cc0","hops":2,"enemies":{"ball":4,"sc":2,"sn":1}},
-{"bg":"#00c","base":"#0cc","sides":["#c0c","#f6f"],"c1":"#cc0","c2":"#000","hops":2,"enemies":{"ball":4,"sc":2,"sn":1}},
-{"bg":"#430","base":"#cc0","sides":["#a60","#eb4"],"c1":"#0c0","c2":"#00c","hops":2,"enemies":{"ball":4,"sc":3,"sn":1}},
-{"bg":"#a0a","base":"#0cc","sides":["#088","#0ee"],"c1":"#ccc","c2":"#cc0","hops":2,"enemies":{"ball":4,"sc":3,"sn":1}},
-{"bg":"#000","base":"#00c","sides":["#99c","#ddf"],"c1":"#0c0","c2":"#c00","hops":2,"enemies":{"ball":5,"sc":3,"sn":1}},
-{"bg":"#0aa","base":"#000","sides":["#cc0","#ff6"],"c1":"#c0c","c2":"#fff","hops":2,"enemies":{"ball":5,"sc":3,"sn":1}},
-{"bg":"#222","base":"#fff","sides":["#c00","#f66"],"c1":"#cc0","c2":"#0c0","hops":2,"enemies":{"ball":5,"sc":4,"sn":1}},
+{"bg":"#000","base":"#133","sides":["#088","#0ee"],"c1":"#fff","c2":"#c0c","hops":1,"enemies":{"ball":3,"sc":0,"sn":0}},
+{"bg":"#a0a","base":"#000","sides":["#ccc","#fff"],"c1":"#0c0","c2":"#cc0","hops":1,"enemies":{"ball":2,"sc":0,"sn":1}},
+{"bg":"#00c","base":"#ccc","sides":["#aa0","#dd0"],"c1":"#0c0","c2":"#00a","hops":2,"enemies":{"ball":2,"sc":0,"sn":1}},
+{"bg":"#005","base":"#cc0","sides":["#999","#eee"],"c1":"#0c0","c2":"#000","hops":2,"enemies":{"ball":3,"sc":0,"sn":1}},
+{"bg":"#0aa","base":"#ccc","sides":["#cc0","#ee4"],"c1":"#0c0","c2":"#c00","hops":2,"enemies":{"ball":3,"sc":0,"sn":1}},
+{"bg":"#000","base":"#c00","sides":["#888","#ddd"],"c1":"#cc0","c2":"#0cc","hops":2,"enemies":{"ball":3,"sc":0,"sn":1}},
+{"bg":"#050","base":"#000","sides":["#0a0","#6e6"],"c1":"#ccc","c2":"#c0c","hops":2,"enemies":{"ball":3,"sc":0,"sn":1}},
+{"bg":"#c00","base":"#ccc","sides":["#888","#fff"],"c1":"#00c","c2":"#cc0","hops":2,"enemies":{"ball":4,"sc":1,"sn":1}},
+{"bg":"#00c","base":"#0cc","sides":["#c0c","#f6f"],"c1":"#cc0","c2":"#000","hops":2,"enemies":{"ball":4,"sc":1,"sn":1}},
+{"bg":"#430","base":"#cc0","sides":["#a60","#eb4"],"c1":"#0c0","c2":"#00c","hops":2,"enemies":{"ball":4,"sc":1,"sn":1}},
+{"bg":"#a0a","base":"#0cc","sides":["#088","#0ee"],"c1":"#ccc","c2":"#cc0","hops":2,"enemies":{"ball":4,"sc":1,"sn":1}},
+{"bg":"#000","base":"#00c","sides":["#99c","#ddf"],"c1":"#0c0","c2":"#c00","hops":2,"enemies":{"ball":5,"sc":1,"sn":1}},
+{"bg":"#0aa","base":"#000","sides":["#cc0","#ff6"],"c1":"#c0c","c2":"#fff","hops":2,"enemies":{"ball":5,"sc":1,"sn":1}},
+{"bg":"#222","base":"#fff","sides":["#c00","#f66"],"c1":"#cc0","c2":"#0c0","hops":2,"enemies":{"ball":5,"sc":1,"sn":1}},
 {"bg":"#000","base":"#000","sides":["#000","#000"],"c1":"#fff","c2":"#0c0","hops":1,"enemies":{"ball":1,"sc":1,"sn":1}},
 {"bg":"#000","base":"#000","sides":["#000","#000"],"c1":"#fff","c2":"#000","hops":2,"enemies":{"ball":2,"sc":1,"sn":1}},
 {"bg":"#000","base":"#000","sides":["#000","#000"],"c1":"#ffe","c2":"#000","hops":2,"enemies":{"ball":2,"sc":1,"sn":2}}
@@ -58,7 +53,7 @@ let mode='title',L=0,score=0,hi=0,lives=3,cubes,P,E,SA,tm=0,bonus=0,spT,xl=0;
 try{hi=+localStorage.getItem('pogoHi')||0}catch(e){}
 
 function addScore(n){const o=score;score+=n;if(Math.floor(score/10000)>Math.floor(o/10000)){lives++;xl=2}save()}
-function newLevel(){cubes=Array.from({length:28},()=>({s:0}));SA=[{r:3,c:-1},{r:3,c:4}];spT={ball:.5,sc:2,sn:4};resetRound()}
+function newLevel(){cubes=Array.from({length:28},()=>({s:0}));SA=[{r:3,c:-1},{r:3,c:4}];spT={ball:3.5,sc:2,sn:4};resetRound()}
 function resetRound(){E=[];P={type:'p',r:0,c:0,fr:-1,fc:0,p:0,dur:.4,arc:0,fy:0,fall:0,dead:0};mode='play'}
 function hop(e,dr,dc,dur,arc){e.fr=e.r;e.fc=e.c;e.r+=dr;e.c+=dc;e.p=0;e.dur=dur;e.arc=arc==null?22:arc}
 function mk(type){return{type,r:0,c:0,fr:-1,fc:0,p:0,dur:.5,arc:0,w:0,ph:0,dir:Math.random()<.5?-1:1}}
@@ -71,7 +66,7 @@ function land(){
  const q=cubes[idx(P.r,P.c)],h=LV[L].hops;
  if(q.s<h){q.s++;addScore(25);if(cubes.every(x=>x.s>=h)){bonus=1000+L*500;addScore(bonus);save();mode='bonus';tm=3;E=[]}}
 }
-function lose(){lives--;save();if(lives<=0){mode='over'}else{resetRound();spT={ball:1,sc:2,sn:3}}}
+function lose(){lives--;save();if(lives<=0){mode='over'}else{resetRound();spT={ball:2.5,sc:2,sn:3}}}
 function ai(e,k){
  if(e.type=='ball'){const d=Math.random()<.5?[1,0]:[1,1];hop(e,d[0],d[1],.45*k);e.w=.05}
  else if(e.type=='sc'){
@@ -152,5 +147,7 @@ newLevel();mode='title';
 let last=performance.now();
 function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;try{update(dt);draw()}catch(e){console.error(e)}requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
+function fit(){const p=document.querySelector('p'),b=document.body,s=Math.min(b.clientWidth/W,(b.clientHeight-p.offsetHeight-12)/H);cv.style.width=Math.floor(W*s)+'px';cv.style.height=Math.floor(H*s)+'px'}
+addEventListener('resize',fit);fit();
 </script>
 </body></html>
