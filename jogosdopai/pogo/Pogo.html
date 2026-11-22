@@ -25,6 +25,7 @@ p{margin:6px;font-size:12px;opacity:.7;text-align:center}
 {"bg":"#00c","base":"#cc0","sides":["#ccc","#fff"],"c1":"#0c0","c2":"#0cc","hops":1,"enemies":{"ball":2,"sc":0,"sn":0}},
 {"bg":"#000","base":"#0cc","sides":["#088","#0ee"],"c1":"#fff","c2":"#c0c","hops":1,"enemies":{"ball":2,"sc":0,"sn":0}},
 {"bg":"#000","base":"#133","sides":["#088","#0ee"],"c1":"#fff","c2":"#c0c","hops":1,"enemies":{"ball":3,"sc":0,"sn":0}},
+{"bg":"#000","base":"#fff","sides":["#000","#000"],"c1":"#000","c2":"#00a","hops":1,"enemies":{"ball":4,"sc":0,"sn":0}},
 {"bg":"#a0a","base":"#000","sides":["#ccc","#fff"],"c1":"#0c0","c2":"#cc0","hops":1,"enemies":{"ball":2,"sc":0,"sn":1}},
 {"bg":"#00c","base":"#ccc","sides":["#aa0","#dd0"],"c1":"#0c0","c2":"#00a","hops":2,"enemies":{"ball":2,"sc":0,"sn":1}},
 {"bg":"#005","base":"#cc0","sides":["#999","#eee"],"c1":"#0c0","c2":"#000","hops":2,"enemies":{"ball":3,"sc":0,"sn":1}},
@@ -58,8 +59,8 @@ sc:["...XXX....","..X...X...","X.XXXXX.X.",".XXoXoXX..","X.XXXXX.X.","..X.X.X...
 let mode='title',L=0,score=0,hi=0,lives=3,cubes,P,E,SA,tm=0,bonus=0,spT,xl=0;
 try{hi=+localStorage.getItem('pogoHi')||0}catch(e){}
 
-function addScore(n){const o=score;score+=n;if(Math.floor(score/10000)>Math.floor(o/10000)){lives++;xl=2}save()}
-function newLevel(){cubes=Array.from({length:28},()=>({s:0}));SA=[{r:3,c:-1},{r:3,c:4}];spT={ball:3.5,sc:2,sn:4};resetRound()}
+function addScore(n){const o=score;score+=n;if(Math.floor(score/5000)>Math.floor(o/5000)){lives++;xl=2}save()}
+function newLevel(){cubes=Array.from({length:28},()=>({s:0}));SA=[{r:3,c:-1},{r:3,c:4}];spT={ball:3.5,sc:2,sn:8};resetRound()}
 function resetRound(){E=[];P={type:'p',r:0,c:0,fr:-1,fc:0,p:0,dur:.4,arc:0,fy:0,fall:0,dead:0};mode='play'}
 function hop(e,dr,dc,dur,arc){e.fr=e.r;e.fc=e.c;e.r+=dr;e.c+=dc;e.p=0;e.dur=dur;e.arc=arc==null?22:arc}
 function mk(type){return{type,r:0,c:0,fr:-1,fc:0,p:0,dur:.5,arc:0,w:0,ph:0,dir:Math.random()<.5?-1:1}}
@@ -72,7 +73,7 @@ function land(){
  const q=cubes[idx(P.r,P.c)],h=LV[L].hops;
  if(q.s<h){q.s++;addScore(25);if(cubes.every(x=>x.s>=h)){bonus=1000+L*500;addScore(bonus);save();mode='bonus';tm=3;E=[]}}
 }
-function lose(){lives--;save();if(lives<=0){mode='over'}else{resetRound();spT={ball:2.5,sc:2,sn:3}}}
+function lose(){lives--;save();if(lives<=0){mode='over'}else{resetRound();spT={ball:2.5,sc:2,sn:6}}}
 function ai(e,k){
  if(e.type=='ball'){const d=Math.random()<.5?[1,0]:[1,1];hop(e,d[0],d[1],.45*k);e.w=.05}
  else if(e.type=='sc'){
@@ -96,7 +97,7 @@ function update(dt){
  const n=t=>E.filter(e=>e.type==t).length;
  const M=LV[L].enemies;spT.ball-=dt;if(spT.ball<=0&&n('ball')<(M.ball||0)){E.push(mk('ball'));spT.ball=.7+Math.random()*.5}
  if(n('sc')<(M.sc||0)){spT.sc-=dt;if(spT.sc<=0){const e=mk('sc'),r=2+Math.floor(Math.random()*4);e.r=r;e.c=Math.floor(Math.random()*(r+1));e.fr=e.r;e.fc=e.c;e.p=1;e.w=.5;E.push(e);spT.sc=1.5}}
- if(n('sn')<(M.sn||0)){spT.sn-=dt;if(spT.sn<=0){const e=mk('sn');e.w=.6;E.push(e);spT.sn=2}}
+ if(n('sn')<(M.sn||0)){spT.sn-=dt;if(spT.sn<=0){const e=mk('sn');e.w=.6;E.push(e);spT.sn=4}}
  for(const e of E){if(e.p<1)e.p=Math.min(1,e.p+dt/e.dur);else{e.w-=dt;if(e.w<=0)ai(e,k)}}
  E=E.filter(e=>!(e.p>=1&&!valid(e.r,e.c)));
  for(const e of E)if(e.r==P.r&&e.c==P.c&&e.p>=.6&&P.p>=.6){P.dead=1.1;break}
