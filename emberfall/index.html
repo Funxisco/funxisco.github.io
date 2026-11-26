@@ -201,7 +201,7 @@
 <div id="titleScreen" class="screen">
   <div class="flavor">UMA DESCIDA SEM FIM</div>
   <h1>EMBERFALL</h1>
-  <p class="subtitle">Cada antro que limpares abre o seguinte. Aceita bênçãos daquilo que ainda arde aqui em baixo, e descobre até que profundidade consegues cair antes que ela te leve.</p>
+  <p class="subtitle">Cada antro que limpares abre o seguinte. Aceita bênçãos daquilo que ainda arde aqui em baixo e enfrenta um boss diferente a cada cinco níveis.</p>
   <p class="hint" id="hintText"></p>
   <button class="bigBtn" id="startBtn">Entra nas Profundezas</button>
 </div>
@@ -435,6 +435,21 @@ function enterRoom(d, first){
 }
 
 function spawnWave(d){
+  if(d%5===0){
+    const bossTypes = ['ember','warden','reaper'];
+    const type = bossTypes[(d/5-1)%bossTypes.length];
+    let x,y,tries=0;
+    do{
+      x = rand(WALL+90, room.w-WALL-90);
+      y = rand(WALL+90, room.h*0.48);
+      tries++;
+    } while((dist(x,y,player.x,player.y)<260 || pillarOverlap(x,y,42)) && tries<50);
+    enemies.push(makeBoss(type,x,y,d));
+    document.getElementById('depthLabel').textContent = `BOSS · PROFUNDIDADE`;
+    spawnText(x,y-70,`BOSS: ${type==='ember'?'SENHOR DAS BRASAS':type==='warden'?'GUARDIÃO RÚNICO':'CEIFADOR'}`,'#eec468',16);
+    return;
+  }
+  document.getElementById('depthLabel').textContent = 'PROFUNDIDADE';
   const count = clamp(2 + Math.floor(d*0.85), 2, 11);
   for(let i=0;i<count;i++){
     let type = 'wraith';
@@ -450,6 +465,26 @@ function spawnWave(d){
     enemies.push(makeEnemy(type, x, y, d));
   }
 }
+
+function makeBoss(type,x,y,d){
+  const scale = 1 + (d-5)*0.1;
+  const profiles = {
+    ember:{r:34,hp:300,speed:105,dmg:24,atkRange:94,windup:0.72},
+    warden:{r:38,hp:390,speed:82,dmg:18,shootRange:480},
+    reaper:{r:32,hp:330,speed:165,dmg:30,atkRange:260}
+  };
+  const profile = profiles[type];
+  return {
+    type:'boss', bossType:type, x,y,r:profile.r,
+    hp:profile.hp*scale, maxHp:profile.hp*scale,
+    speed:profile.speed, dmg:profile.dmg*scale,
+    atkRange:profile.atkRange, windup:profile.windup,
+    shootRange:profile.shootRange,
+    state:'chase', timer:rand(0,0.5), facing:0, hitFlash:0,
+    hitDone:false, chargeDir:{x:0,y:0}
+  };
+}
+
 function pillarOverlap(x,y,r){
   return room.pillars.some(p=> dist(x,y,p.x,p.y) < p.r + r + 6);
 }
@@ -677,7 +712,9 @@ function updateEnemies(dt){
     const d = Math.hypot(dx,dy) || 1;
     en.facing = Math.atan2(dy,dx);
 
-    if(en.type==='archer'){
+    if(en.type==='boss'){
+      updateBoss(en,dt,d,dx/d,dy/d);
+    } else if(en.type==='archer'){
       updateArcher(en, dt, d, dx/d, dy/d);
     } else {
       updateMelee(en, dt, d, dx/d, dy/d);
@@ -709,6 +746,98 @@ function updateEnemies(dt){
         other.x -= ax*push; other.y -= ay*push;
       }
     }
+  }
+}
+
+function updateBoss(en,dt,d,nx,ny){
+  if(en.bossType==='ember'){
+    switch(en.state){
+      case 'chase':
+        if(d>en.atkRange){
+          en.x+=nx*en.speed*dt; en.y+=ny*en.speed*dt;
+        }else{
+          en.state='windup'; en.timer=en.windup;
+        }
+        break;
+      case 'windup':
+        en.timer-=dt;
+        if(en.timer<=0){ en.state='strike'; en.timer=0.2; en.hitDone=false; }
+        break;
+      case 'strike':
+        if(!en.hitDone){
+          spawnParticles(en.x,en.y,'#e07036',18,180,0.4,8);
+          if(d<en.atkRange+player.r) damagePlayer(en.dmg);
+          en.hitDone=true;
+        }
+        en.timer-=dt;
+        if(en.timer<=0){ en.state='recover'; en.timer=0.65; }
+        break;
+      case 'recover':
+        en.timer-=dt;
+        if(en.timer<=0) en.state='chase';
+        break;
+    }
+    return;
+  }
+
+  if(en.bossType==='warden'){
+    switch(en.state){
+      case 'chase':
+        if(d<en.shootRange*0.45){
+          en.x-=nx*en.speed*dt; en.y-=ny*en.speed*dt;
+        }else if(d>en.shootRange*0.78){
+          en.x+=nx*en.speed*dt; en.y+=ny*en.speed*dt;
+        }
+        en.timer-=dt;
+        if(en.timer<=0 && d<en.shootRange){
+          en.state='aim'; en.timer=0.75;
+        }
+        break;
+      case 'aim':
+        en.timer-=dt;
+        if(en.timer<=0){
+          const angle=Math.atan2(ny,nx);
+          for(const offset of [-0.28,0,0.28]){
+            const a=angle+offset;
+            projectiles.push({
+              x:en.x,y:en.y,vx:Math.cos(a)*285,vy:Math.sin(a)*285,
+              r:10,dmg:en.dmg,life:2.4,friendly:false
+            });
+          }
+          en.state='chase'; en.timer=1.35;
+        }
+        break;
+    }
+    return;
+  }
+
+  switch(en.state){
+    case 'chase':
+      if(d>en.atkRange){
+        en.x+=nx*en.speed*dt; en.y+=ny*en.speed*dt;
+      }else{
+        en.chargeDir.x=nx; en.chargeDir.y=ny;
+        en.state='windup'; en.timer=0.7;
+      }
+      break;
+    case 'windup':
+      en.timer-=dt;
+      if(en.timer<=0){ en.state='charge'; en.timer=0.42; en.hitDone=false; }
+      break;
+    case 'charge':
+      en.x+=en.chargeDir.x*520*dt;
+      en.y+=en.chargeDir.y*520*dt;
+      if(!en.hitDone && dist(player.x,player.y,en.x,en.y)<en.r+player.r+12){
+        damagePlayer(en.dmg);
+        en.hitDone=true;
+      }
+      en.timer-=dt;
+      if(en.timer<=0){ en.state='recover'; en.timer=0.8; }
+      break;
+    case 'recover':
+      en.timer-=dt;
+      if(en.timer<=0) en.state='chase';
+      break;
   }
 }
 
