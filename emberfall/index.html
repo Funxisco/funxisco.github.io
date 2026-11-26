@@ -1183,8 +1183,8 @@ function drawEnemy(en){
       '...CCCCCCCCC...',
       '..CCBBBBBBBCC..',
       '.CCBBBBBBBBBCC.',
-      'CCBBGGGBBBGGGBCC',
-      'CCBBGGGBBBGGGBCC',
+      'CCBBGGGBBBBGGCC',
+      'CCBBGGGBBBBGGCC',
       'CCBBBBBBBBBBBCC',
       '.CCBBBBBBBBBCC.',
       '..CBBCCCCCBBC..',
@@ -1216,13 +1216,15 @@ function drawEnemy(en){
     sprite = ['...GGG...','..GGGGG..','.GGWWWGG.','.GWWWWWG.','.GGDDDGG.','..GGGGG..','.GGGGGGG.','.G.GG.G..','...G.G...'];
     palette = {G:'#3f6b63',W:'#7fd6c2',D:'#17312d'};
   } else if(en.type==='brute'){
-    sprite = ['...RR.RR...','..RRRRRRR..','.RRWWWWWRR.','RRWWWWWWWRR','.RRWWWWWRR.','RRRRRDDDRRR','..RRRRRRR..','RRRRRRRRRRR','.RR.RRRRR.R.','..RRR.RRR..','...RR.RR...'];
+    sprite = ['...RR.RR...','..RRRRRRR..','.RRWWWWWRR.','RRWWWWWWWRR','.RRWWWWWRR.','RRRRRDDDRRR','..RRRRRRR..','RRRRRRRRRRR','.R.RRRRR.R.','..RRR.RRR..','...RR.RR...'];
     palette = {R:'#6e2a20',W:'#e0705c',D:'#32130f'};
   } else {
     sprite = ['...PPP...','..PPPPP..','.PPWWPP..','PPWWWWPP.','PPWBBWWPP','.PPWWPP..','.P.PP.P..','..P..P...','..P..P...'];
     palette = {P:'#34274b',W:'#a687df',B:'#17111f'};
   }
-  if(en.hitFlash>0) palette = {R:'#ffffff',W:'#ffffff',G:'#ffffff',D:'#ffffff',P:'#ffffff',B:'#ffffff'};
+  if(en.hitFlash>0){
+    palette = Object.fromEntries([...new Set(sprite.join('').replace(/\./g,''))].map(pixel=>[pixel,'#ffffff']));
+  }
   drawPixelSprite(sprite,palette,PIXEL_SIZE);
   if(en.state==='windup' || en.state==='aim'){
     ctx.fillStyle = en.type==='boss' ? '#eec468' : en.type==='archer' ? '#7fd6c2' : '#e0705c';
