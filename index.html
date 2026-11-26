@@ -116,9 +116,16 @@
 
   .games{
     display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));
-    gap:40px;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:24px;
     margin-top:20px;
+  }
+
+  @media (max-width:760px){
+    .games{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width:520px){
+    .games{ grid-template-columns:1fr; }
   }
 
   .card{
@@ -607,6 +614,33 @@
       <h2>Gatinhos</h2>
       <p>Encontra todos os trios de gatinhos e liberta os animais.</p>
       <a class="play-btn" href="gatinhos/gatinhos.html">
+        <svg class="paw" viewBox="0 0 24 24" fill="#1B4332"><circle cx="12" cy="15" r="6"/><circle cx="5" cy="7" r="2.6"/><circle cx="12" cy="4" r="2.6"/><circle cx="19" cy="7" r="2.6"/></svg>
+        Jogar
+      </a>
+    </article>
+
+    <!-- Rali Alpino -->
+    <article class="card day" data-href="ralialpino/ralialpino.html" tabindex="0" role="link" aria-label="Abrir Rali Alpino">
+      <span class="sign">Habitat de montanha</span>
+      <div class="icon-wrap" aria-hidden="true">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="60" cy="104" rx="38" ry="8" fill="#1B4332" opacity="0.18"/>
+          <path d="M12 82 40 34 58 61 74 28 108 82Z" fill="#4A4770"/>
+          <path d="m31 50 9-16 10 16-6-3-4 5-4-5Z" fill="#F2F7ED"/>
+          <path d="m66 42 8-14 10 18-7-4-4 5-3-5Z" fill="#F2F7ED"/>
+          <path d="M19 84h82" stroke="#1B4332" stroke-width="5" stroke-linecap="round"/>
+          <path d="M26 78 35 66h34l12 12v10H26Z" fill="#FF6B35"/>
+          <path d="m40 68 5-8h17l8 8Z" fill="#B7E4C7"/>
+          <circle cx="40" cy="88" r="7" fill="#1B2E1F"/>
+          <circle cx="68" cy="88" r="7" fill="#1B2E1F"/>
+          <circle cx="40" cy="88" r="3" fill="#F2F7ED"/>
+          <circle cx="68" cy="88" r="3" fill="#F2F7ED"/>
+          <path d="M27 79h-5m57 0h-5" stroke="#FFC93C" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2>Rali Alpino</h2>
+      <p>Acelera pelas montanhas e domina as curvas do rali!</p>
+      <a class="play-btn" href="ralialpino/ralialpino.html">
         <svg class="paw" viewBox="0 0 24 24" fill="#1B4332"><circle cx="12" cy="15" r="6"/><circle cx="5" cy="7" r="2.6"/><circle cx="12" cy="4" r="2.6"/><circle cx="19" cy="7" r="2.6"/></svg>
         Jogar
       </a>
